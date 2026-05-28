@@ -1,0 +1,28 @@
+@baseUrl = http://localhost:8000/api
+
+### 1. Test Database Connectivity
+GET {{baseUrl}}/test-db
+
+###
+
+### 2. Test User Registration
+POST {{baseUrl}}/register
+Content-Type: application/json
+
+{
+    "name": "Alex Organiser",
+    "email": "alex@utm.my",
+    "password": "securepassword123",
+    "role": "organiser"
+}
+
+###
+
+### 3. Test User Login
+POST {{baseUrl}}/login
+Content-Type: application/json
+
+{
+    "email": "alex@utm.my",
+    "password": "securepassword123"
+}
