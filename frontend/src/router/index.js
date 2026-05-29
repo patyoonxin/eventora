@@ -10,11 +10,14 @@ import History from '../pages/History.vue'
 import S_Home from '../pages/Society/S_Home.vue'
 import S_AddEvent from '../pages/Society/S_AddEvent.vue'
 import S_History from '../pages/Society/S_History.vue'
+import S_ScanQR from '../pages/Society/S_ScanQR.vue'
+import S_Analytics from '../pages/Society/S_Analytics.vue'
 
 // 3. Import Admin Role Pages
 import A_AllEvent from '../pages/Admin/A_AllEvent.vue'
 import A_UserManage from '../pages/Admin/A_UserManage.vue'
 import A_Home from '../pages/Admin/A_Home.vue'
+import A_SocietyAnalytics from '../pages/Admin/A_SocietyAnalytics.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -50,15 +53,21 @@ const router = createRouter({
       meta: { role: 'society' }
     },
     {
-      path: '/society/add-event',
-      name: 'S_AddEvent',
-      component: S_AddEvent,
+      path: '/society/scan-qr',
+      name: 'S_ScanQR',
+      component: S_ScanQR,
       meta: { role: 'society' }
     },
     {
       path: '/society/history',
       name: 'S_History',
       component: S_History,
+      meta: { role: 'society' }
+    },
+    {
+      path: '/society/analytics',
+      name: 'S_Analytics',
+      component: S_Analytics,
       meta: { role: 'society' }
     },
     {
@@ -71,6 +80,12 @@ const router = createRouter({
       path: '/admin/all-events',
       name: 'A_AllEvent',
       component: A_AllEvent,
+      meta: { role: 'admin' }
+    },
+    {
+      path: '/admin/analytics',
+      name: 'A_SocietyAnalytics',
+      component: A_SocietyAnalytics,
       meta: { role: 'admin' }
     },
     {

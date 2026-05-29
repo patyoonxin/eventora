@@ -11,14 +11,14 @@
         <span class="text-[10px] font-medium">Home</span>
       </router-link>
 
-      <!-- Add Event Link -->
+      <!-- Scan QR -->
       <router-link 
-        to="/society/add-event" 
+        to="/society/scan-qr" 
         class="flex flex-col items-center gap-0.5 py-1 px-3 rounded-lg transition-all duration-300 hover:scale-105"
-        :class="isActive('/society/add-event') ? 'text-white scale-105' : 'text-white opacity-70 hover:opacity-100'"
+        :class="isActive('/society/scan-qr') ? 'text-white scale-105' : 'text-white opacity-70 hover:opacity-100'"
       >
-        <i class="pi pi-plus-circle text-lg"></i>
-        <span class="text-[10px] font-medium">Add Event</span>
+        <i class="pi pi-qrcode text-lg"></i>
+        <span class="text-[10px] font-medium">Scan QR</span>
       </router-link>
 
       <!-- Past Activities Link -->
@@ -29,6 +29,16 @@
       >
         <i class="pi pi-book text-lg"></i>
         <span class="text-[10px] font-medium">History</span>
+      </router-link>
+
+       <!-- Society Analytics Link -->
+      <router-link 
+        to="/society/analytics" 
+        class="flex flex-col items-center gap-0.5 py-1 px-3 rounded-lg transition-all duration-300 hover:scale-105"
+        :class="isActive('/society/analytics') ? 'text-white scale-105' : 'text-white opacity-70 hover:opacity-100'"
+      >
+        <i class="pi pi-chart-bar text-lg"></i>
+        <span class="text-[10px] font-medium">Analytics</span>
       </router-link>
     </div>
   </nav>
