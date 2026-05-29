@@ -5,7 +5,7 @@ GET {{baseUrl}}/test-db
 
 ###
 
-### 2. Test User Registration
+### 2. Test User Registration (Organiser)
 POST {{baseUrl}}/register
 Content-Type: application/json
 
@@ -25,4 +25,26 @@ Content-Type: application/json
 {
     "email": "alex@utm.my",
     "password": "securepassword123"
+}
+
+### 4. Test User Registration (Student)
+POST {{baseUrl}}/register
+Content-Type: application/json
+
+{
+    "name": "Siti Student",
+    "email": "siti@utm.my",
+    "password": "securepassword123",
+    "role": "attendee"
+}
+
+### 5. Test User Registration (Admin)
+POST {{baseUrl}}/register
+Content-Type: application/json
+
+{
+    "name": "Admin User",
+    "email": "admin@utm.my",
+    "password": "securepassword123",
+    "role": "faculty_admin"
 }
