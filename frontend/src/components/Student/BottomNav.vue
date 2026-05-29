@@ -3,7 +3,7 @@
     <div class="flex justify-around items-center h-14">
       <!-- Home Link -->
       <router-link 
-        to="/" 
+        to="/home" 
         class="flex flex-col items-center gap-0.5 py-1 px-3 rounded-lg transition-all duration-300 hover:scale-105"
         :class="isActive('/') ? 'text-white scale-105' : 'text-white opacity-70 hover:opacity-100'"
       >

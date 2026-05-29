@@ -4,6 +4,7 @@ use Slim\App;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use App\Controllers\AuthController;
+use App\Controllers\EventController;
 
 return function (App $app) {
     // Test endpoint to check database connectivity
@@ -29,4 +30,7 @@ return function (App $app) {
     // Auth Routes
     $app->post('/api/register', [AuthController::class, 'register']);
     $app->post('/api/login', [AuthController::class, 'login']);
+
+    // Event Routes
+    $app->get('/api/events', [EventController::class, 'index']);
 };
