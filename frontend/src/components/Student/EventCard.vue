@@ -7,6 +7,11 @@ const props = defineProps({
     type: Object,
     required: true,
   },
+  // 👇 ADD THIS OPTIONAL PROP HERE 👇
+  ticketNumber: {
+    type: String,
+    default: "",
+  },
 });
 
 const router = useRouter();
@@ -136,6 +141,12 @@ const formatPrice = (price) => {
               {{ tag }}
             </span>
           </div>
+          <span
+            v-if="props.ticketNumber"
+            class="text-sm font-semibold text-gray-400 dark:text-gray-500 tracking-wider"
+          >
+            TKNO: {{ props.ticketNumber }}
+          </span>
         </div>
       </div>
     </div>

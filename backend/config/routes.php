@@ -33,4 +33,6 @@ return function (App $app) {
 
     // Event Routes
     $app->get('/api/events', [EventController::class, 'index']);
+
+    $app->get('/api/users/past-events', [EventController::class, 'getPastEvents']);
 };
