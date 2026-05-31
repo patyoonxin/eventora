@@ -35,12 +35,12 @@ class EventController
         try {
             $db = \App\Models\Database::connect();
 
-            // Hardcoded student ID 1 for now until we plug in the JWT authentication middleware
-            $userId = 2;
+            // 👇 READ THE DYNAMIC DATA LOADED FROM THE JWT MIDDLEWARE 👇
+            $user = $request->getAttribute('user');
+            $userId = $user->id; // Your database field `id` from the payload!
 
-            // Query fetching only events where the user checked in, alongside their ticket number
             $query = "
-                SELECT e.*, s.name AS society_name, LPAD(t.id, 6, '0') AS ticket_number
+                SELECT e.*, s.name AS society_name, LPAD(t.id, 5, '0') AS ticket_number
                 FROM events e
                 JOIN societies s ON e.society_id = s.id
                 JOIN tickets t ON e.id = t.event_id

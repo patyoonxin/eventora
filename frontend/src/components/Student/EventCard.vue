@@ -9,7 +9,7 @@ const props = defineProps({
   },
   // 👇 ADD THIS OPTIONAL PROP HERE 👇
   ticketNumber: {
-    type: String,
+    type: [String, Number],
     default: "",
   },
 });
@@ -62,11 +62,15 @@ const formatPrice = (price) => {
 
 <template>
   <div
-    @click="router.push(`/events/${props.event.id}`)"
-    class="cursor-pointer transition-all ..."
+    @click="
+      props.ticketNumber
+        ? router.push(`/past-events/${props.event.id}`)
+        : router.push(`/events/${props.event.id}`)
+    "
+    class="cursor-pointer transition-all w-full max-w-sm"
   >
     <div
-      class="w-full max-w-sm bg-white dark:bg-gray-800 rounded-3xl shadow-md border border-gray-100 dark:border-gray-700 overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
+      class="bg-white dark:bg-gray-800 rounded-3xl shadow-md border border-gray-100 dark:border-gray-700 overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
     >
       <div
         class="relative w-full h-48 bg-purple-200 dark:bg-purple-900 overflow-hidden"
@@ -118,18 +122,16 @@ const formatPrice = (price) => {
           <div
             class="text-gray-400 dark:text-gray-400 text-xs font-medium flex items-center space-x-1.5"
           >
-            <span class="font-semibold text-gray-600 dark:text-gray-300">
-              {{ formatPrice(props.event.price) }}
-            </span>
+            <span class="font-semibold text-gray-600 dark:text-gray-300">{{
+              formatPrice(props.event.price)
+            }}</span>
             <span>|</span>
             <span>{{ formatDate(props.event.starts_at) }}</span>
             <span>|</span>
-            <span class="truncate max-w-[100px]" :title="props.event.venue">
-              {{ props.event.venue }}
-            </span>
+            <span class="truncate max-w-[100px]">{{ props.event.venue }}</span>
           </div>
 
-          <div class="flex items-center space-x-1.5">
+          <div class="flex items-center space-x-2">
             <span
               v-for="(tag, index) in tagsArray"
               :key="index"
@@ -140,13 +142,14 @@ const formatPrice = (price) => {
             >
               {{ tag }}
             </span>
+
+            <span
+              v-if="props.ticketNumber"
+              class="text-sm font-semibold text-gray-400 dark:text-gray-500 tracking-wider whitespace-nowrap pl-1"
+            >
+              TKNO: {{ props.ticketNumber }}
+            </span>
           </div>
-          <span
-            v-if="props.ticketNumber"
-            class="text-sm font-semibold text-gray-400 dark:text-gray-500 tracking-wider"
-          >
-            TKNO: {{ props.ticketNumber }}
-          </span>
         </div>
       </div>
     </div>

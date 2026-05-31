@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted, computed } from "vue";
 import EventCard from "@/components/Student/EventCard.vue";
-import FilterSortBar from "@/components/SearchFilterSortBar.vue"; // 👈 Import here
+import FilterSortBar from "@/components/SearchFilterSortBar.vue"; // Import search UI component
 
 // API Data States
 const events = ref([]);
@@ -33,7 +33,7 @@ onMounted(async () => {
   }
 });
 
-// 🔥 Core Pipeline stays contextually clean and reads directly from local variables!
+// Core Pipeline stays contextually clean and reads directly from local variables!
 const filteredAndSortedEvents = computed(() => {
   let result = [...events.value];
 
@@ -80,9 +80,9 @@ const filteredAndSortedEvents = computed(() => {
 </script>
 
 <template>
-  <div class="p-4 sm:p-8 max-w-7xl mx-auto">
+  <div class="min-h-screen p-4 sm:p-8 max-w-7xl mx-auto">
     <div class="mb-4 text-left">
-      <h2 class="text-2xl font-extrabold text-gray-900 dark:text-white pl-5">
+      <h2 class="text-3xl font-extrabold text-gray-900 dark:text-white pl-5">
         Explore Upcoming Events
       </h2>
     </div>

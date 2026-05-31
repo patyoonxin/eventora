@@ -47,6 +47,12 @@ const router = createRouter({
       meta: { role: "student" },
     },
     {
+      path: '/past-events/:id',
+      name: 'PastEventDetails',
+      component: () => import('@/components/Student/PastEventDetails.vue'),
+      props: true
+    },
+    {
       path: "/login",
       name: "Login",
       component: LoginView,
