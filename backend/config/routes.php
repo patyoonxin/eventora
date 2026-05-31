@@ -35,5 +35,8 @@ return function (App $app) {
 
     // PROTECTED ROUTES (Locked Down behind our JWT Check)
     $app->get('/api/users/past-events', [EventController::class, 'getPastEvents'])
-        ->add(new JwtAuthMiddleware()); // 👈 This line locks the route down!
+        ->add(new JwtAuthMiddleware()); // This line locks the route down
+
+    $app->get('/api/society/upcoming-events', [EventController::class, 'getSocietyUpcomingEvents'])
+        ->add(new JwtAuthMiddleware());
 };

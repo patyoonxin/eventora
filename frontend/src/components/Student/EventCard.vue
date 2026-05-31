@@ -7,11 +7,16 @@ const props = defineProps({
     type: Object,
     required: true,
   },
-  // 👇 ADD THIS OPTIONAL PROP HERE 👇
+  // for ticket number
   ticketNumber: {
     type: [String, Number],
     default: "",
   },
+  // for socity dashboard status badge
+  status: {
+    type: String,
+    default: "", 
+  }
 });
 
 const router = useRouter();
@@ -58,6 +63,20 @@ const formatPrice = (price) => {
   const numericPrice = parseFloat(price);
   return numericPrice === 0 ? "RM0" : `RM${numericPrice.toFixed(2)}`;
 };
+
+// Compute dynamic background and text colors for the society event status pill
+const getStatusStyles = computed(() => {
+  if (!props.status) return ""
+  const state = props.status.toLowerCase()
+  
+  const styles = {
+    approved: "bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-950/50 dark:text-purple-300 dark:border-purple-800",
+    pending: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800",
+    rejected: "bg-red-100 text-red-700 border-red-200 dark:bg-red-950/50 dark:text-red-300 dark:border-red-800",
+    cancelled: "bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700"
+  }
+  return styles[state] || styles.pending
+})
 </script>
 
 <template>
@@ -83,6 +102,12 @@ const formatPrice = (price) => {
           :alt="props.event.title"
           class="w-full h-full object-cover"
         />
+        <div 
+          v-if="props.status" 
+          :class="['absolute top-4 left-4 text-xs font-bold uppercase tracking-wider px-3 py-1.5 rounded-full border backdrop-blur-sm shadow-sm', getStatusStyles]"
+        >
+          {{ props.status }}
+        </div>
 
         <!-- <div class="absolute top-4 left-4 bg-blue-400/90 backdrop-blur-sm text-white text-xs font-semibold px-4 py-1.5 rounded-full shadow-sm">
         Recommend To You
