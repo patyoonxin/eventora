@@ -13,7 +13,7 @@ class EventController
     public function index(Request $request, Response $response): Response
     {
         try {
-            $events = Event::getAllApproved();
+            $events = Event::getUpcomingApproved();
 
             $response->getBody()->write(json_encode([
                 "status" => "success",

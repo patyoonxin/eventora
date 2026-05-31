@@ -21,4 +21,19 @@ class Event {
         $stmt = $db->query($query);
         return $stmt->fetchAll();
     }
+
+    public static function getUpcomingApproved()
+    {
+        $db = Database::connect();
+        
+        $query = "
+            SELECT * FROM events 
+            WHERE status = 'approved' 
+            AND starts_at >= NOW()
+            ORDER BY starts_at ASC
+        ";
+        
+        $stmt = $db->query($query);
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+    }
 }
