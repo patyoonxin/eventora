@@ -47,10 +47,10 @@ const router = createRouter({
       meta: { role: "student" },
     },
     {
-      path: '/past-events/:id',
-      name: 'PastEventDetails',
-      component: () => import('@/components/Student/PastEventDetails.vue'),
-      props: true
+      path: "/past-events/:id",
+      name: "PastEventDetails",
+      component: () => import("@/components/Student/PastEventDetails.vue"),
+      props: true,
     },
     {
       path: "/login",
@@ -63,6 +63,12 @@ const router = createRouter({
       name: "S_Home",
       component: S_Home,
       meta: { role: "society" },
+    },
+    {
+      path: "/society/events/:id",
+      name: "SocietyEventDetails",
+      component: () => import("@/components/Society/SocietyEventDetails.vue"),
+      props: true,
     },
     {
       path: "/society/scan-qr",

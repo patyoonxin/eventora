@@ -27,10 +27,12 @@ class Event {
         $db = Database::connect();
         
         $query = "
-            SELECT * FROM events 
-            WHERE status = 'approved' 
-            AND starts_at >= NOW()
-            ORDER BY starts_at ASC
+            SELECT e.*, s.name AS society_name, s.faculty 
+            FROM events e
+            JOIN societies s ON e.society_id = s.id
+            WHERE e.status = 'approved' 
+            AND e.starts_at >= NOW()
+            ORDER BY e.starts_at ASC
         ";
         
         $stmt = $db->query($query);

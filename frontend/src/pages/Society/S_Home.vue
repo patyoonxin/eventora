@@ -143,6 +143,7 @@ const filteredAndSortedUpcomingEvents = computed(() => {
           :key="item.id"
           :event="item"
           :status="item.status"
+          @click="router.push(`/society/events/${item.id}`)"
         />
       </div>
 
