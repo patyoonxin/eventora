@@ -11,6 +11,7 @@ const rememberMe = ref(false);
 const showPassword = ref(false);
 const errors = ref({});
 const isSubmitting = ref(false); // Tracks loading state for the submit button
+const API_BASE = import.meta.env.VITE_API_BASE_URL;
 
 const handleSubmit = async () => {
   errors.value = {};
@@ -31,7 +32,7 @@ const handleSubmit = async () => {
     isSubmitting.value = true;
 
     try {
-      const response = await fetch("http://localhost:8000/api/login", {
+      const response = await fetch(`${API_BASE}/api/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

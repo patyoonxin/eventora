@@ -13,12 +13,13 @@ const searchQuery = ref("");
 const sortBy = ref("date-asc");
 const selectedCategories = ref([]);
 const selectedPriceTypes = ref([]);
+const API_BASE = import.meta.env.VITE_API_BASE_URL;
 
 const categoriesList = ["Academic", "Sports", "Cultural", "Religious"];
 
 onMounted(async () => {
   try {
-    const response = await fetch("http://localhost:8000/api/events");
+    const response = await fetch(`${API_BASE}/api/events`);
     const json = await response.json();
     if (json.status === "success") {
       events.value = json.data;

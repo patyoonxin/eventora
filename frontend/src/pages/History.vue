@@ -6,6 +6,7 @@ import FilterSortBar from "@/components/SearchFilterSortBar.vue"
 const pastEvents = ref([])
 const isLoading = ref(true)
 const errorMessage = ref("") // 3. Fixed: Re-added missing state variable
+const API_BASE = import.meta.env.VITE_API_BASE_URL;
 
 // Isolated Filter UI State management variables
 const searchQuery = ref("");
@@ -20,7 +21,7 @@ onMounted(async () => {
     // Retrieve our active encrypted session token string from browser storage
     const token = localStorage.getItem('eventora_token')
 
-    const response = await fetch('http://localhost:8000/api/users/past-events', {
+    const response = await fetch(`${API_BASE}/api/users/past-events`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`, 
