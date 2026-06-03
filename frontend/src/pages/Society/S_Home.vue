@@ -7,6 +7,7 @@ import FilterSortBar from "@/components/SearchFilterSortBar.vue"; // Import sear
 const router = useRouter();
 const upcomingEvents = ref([]);
 const isLoading = ref(true);
+const API_BASE = import.meta.env.VITE_API_BASE_URL;
 
 // Isolated Filter UI State management variables
 const searchQuery = ref("");
@@ -20,7 +21,7 @@ onMounted(async () => {
     const token = localStorage.getItem("eventora_token");
 
     const response = await fetch(
-      "http://localhost:8000/api/society/upcoming-events",
+      `${API_BASE}/api/society/upcoming-events`,
       {
         headers: {
           Authorization: `Bearer ${token}`,

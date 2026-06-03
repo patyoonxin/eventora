@@ -2,6 +2,8 @@
 import { computed } from "vue";
 import { useRouter } from "vue-router";
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL;
+
 const props = defineProps({
   event: {
     type: Object,
@@ -96,8 +98,9 @@ const getStatusStyles = computed(() => {
       >
         <img
           :src="
-            props.event.image_path ||
-            'https://via.placeholder.com/600x400?text=No+Image+Available'
+            event.image_path
+              ? `${API_BASE}/${event.image_path}`
+              : 'https://via.placeholder.com/600x400?text=EventORA'
           "
           :alt="props.event.title"
           class="w-full h-full object-cover"

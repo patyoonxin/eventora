@@ -71,6 +71,12 @@ const router = createRouter({
       props: true,
     },
     {
+      path: "/society/events/:id/edit",
+      name: "SocietyEventEdit",
+      component: () => import("@/components/Society/SocietyEventEdit.vue"), 
+      props: true,
+    },
+    {
       path: "/society/scan-qr",
       name: "S_ScanQR",
       component: S_ScanQR,

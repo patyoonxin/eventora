@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Controllers;
 
 use Psr\Http\Message\ResponseInterface as Response;
@@ -6,10 +7,12 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 use App\Models\User;
 use Firebase\JWT\JWT;
 
-class AuthController {
-    
+class AuthController
+{
+
     // 1. REGISTRATION ENDPOINT (POST /api/register)
-    public function register(Request $request, Response $response): Response {
+    public function register(Request $request, Response $response): Response
+    {
         $body = $request->getParsedBody();
 
         // Server-side input validation [cite: 26, 28]
@@ -49,7 +52,8 @@ class AuthController {
     }
 
     // 2. LOGIN ENDPOINT (POST /api/login)
-    public function login(Request $request, Response $response): Response {
+    public function login(Request $request, Response $response): Response
+    {
         $body = $request->getParsedBody();
 
         if (empty($body['email']) || empty($body['password'])) {
@@ -66,9 +70,10 @@ class AuthController {
         }
 
         // Generate the JWT token if credentials match [cite: 15]
-        $secretKey = $_ENV['JWT_SECRET'] ?? 'fallback_secret';
+        $config = require __DIR__ . '/../../config/settings.php';
+        $secretKey = $config['jwt']['secret'];
         $issuedAt = time();
-        $expire = $issuedAt + (int)($_ENV['JWT_EXPIRY'] ?? 3600);
+        $expire = $issuedAt + (int)($config['jwt']['expiry'] ?? 3600);
 
         $payload = [
             'iat'  => $issuedAt,
@@ -89,7 +94,7 @@ class AuthController {
             "token"   => $jwt,
             "user"    => $payload['user']
         ]));
-        
+
         return $response->withHeader('Content-Type', 'application/json');
     }
 }

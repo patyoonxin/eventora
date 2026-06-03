@@ -5,6 +5,8 @@ import { useRoute, useRouter } from 'vue-router'
 const route = useRoute()
 const router = useRouter()
 const eventId = route.params.id
+const API_BASE = import.meta.env.VITE_API_BASE_URL
+
 
 // Component States
 const event = ref(null)
@@ -16,7 +18,7 @@ onMounted(async () => {
     const token = localStorage.getItem('eventora_token')
     
     // We fetch from our PROTECTED past-events endpoint to get the ticket_number
-    const response = await fetch(`http://localhost:8000/api/users/past-events`, {
+    const response = await fetch(`${API_BASE}/api/users/past-events`, {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Accept': 'application/json'
@@ -75,7 +77,11 @@ const formatDate = (dateString) => {
       
       <div class="relative w-full h-64 sm:h-72 bg-purple-200 dark:bg-purple-900 rounded-[2.5rem] overflow-hidden shadow-sm mb-6">
         <img 
-          :src="event.image_path || 'https://via.placeholder.com/600x400?text=EventORA'" 
+          :src="
+            event.image_path
+              ? `${API_BASE}/${event.image_path}`
+              : 'https://via.placeholder.com/600x400?text=EventORA'
+          "
           class="w-full h-full object-cover"
         />
         <button @click="router.back()" class="absolute top-5 left-5 w-12 h-12 flex items-center justify-center bg-white dark:bg-gray-800 text-gray-800 dark:text-white rounded-full shadow-lg">

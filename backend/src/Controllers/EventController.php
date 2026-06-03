@@ -4,7 +4,9 @@ namespace App\Controllers;
 
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
+use Psr\Http\Message\UploadedFileInterface;
 use App\Models\Event;
+use PDO;
 
 class EventController
 {
@@ -68,12 +70,13 @@ class EventController
     }
 
     // GET /api/society/upcoming-events
-    public function getSocietyUpcomingEvents(Request $request, Response $response): Response {
+    public function getSocietyUpcomingEvents(Request $request, Response $response): Response
+    {
         try {
             $db = \App\Models\Database::connect();
-            
+
             // 1. Extract user details injected by your working JwtAuthMiddleware
-            $user = $request->getAttribute('user'); 
+            $user = $request->getAttribute('user');
             $userId = $user->id; // The logged-in organiser's User ID
 
             // 2. Dynamic Lookup: Find the Society ID managed by this advisor/organiser
@@ -102,23 +105,282 @@ class EventController
                 AND e.starts_at >= NOW()
                 ORDER BY e.starts_at ASC
             ";
-            
+
             $stmt = $db->prepare($query);
             $stmt->execute(['society_id' => $societyId]);
             $events = $stmt->fetchAll();
-            
+
             $response->getBody()->write(json_encode([
                 "status" => "success",
                 "data" => $events
             ]));
             return $response->withHeader('Content-Type', 'application/json');
-            
         } catch (\Exception $e) {
             $response->getBody()->write(json_encode([
-                "status" => "error", 
+                "status" => "error",
                 "message" => $e->getMessage()
             ]));
             return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
         }
+    }
+
+    public function getEvent(Request $request, Response $response, array $args): Response
+    {
+        $eventId = $args['id'];
+
+        $db = \App\Models\Database::connect();
+
+        $stmt = $db->prepare("
+        SELECT *
+        FROM events
+        WHERE id = :id
+    ");
+
+        $stmt->execute([
+            'id' => $eventId
+        ]);
+
+        $event = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+        if (!$event) {
+            $response->getBody()->write(json_encode([
+                'status' => 'error',
+                'message' => 'Event not found'
+            ]));
+
+            return $response
+                ->withHeader('Content-Type', 'application/json')
+                ->withStatus(404);
+        }
+
+        $response->getBody()->write(json_encode([
+            'status' => 'success',
+            'data' => $event
+        ]));
+
+        return $response
+            ->withHeader('Content-Type', 'application/json');
+    }
+
+    // POST /api/society/events/{id}/update
+    public function update(Request $request, Response $response, array $args): Response
+    {
+        $eventId = $args['id'];
+        $db = \App\Models\Database::connect();
+
+        $user = $request->getAttribute('user');
+
+        // =========================
+        // 1. Get event
+        // =========================
+        $stmt = $db->prepare("
+        SELECT id, society_id, image_path, supporting_document
+        FROM events
+        WHERE id = :id
+    ");
+
+        $stmt->execute(['id' => $eventId]);
+        $eventRecord = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+        if (!$eventRecord) {
+            return $this->errorResponse($response, "Event not found", 404);
+        }
+
+        // =========================
+        // 2. Fix ownership check (IMPORTANT)
+        // =========================
+        $societyStmt = $db->prepare("
+        SELECT id FROM societies WHERE advisor_id = :user_id LIMIT 1
+    ");
+
+        $societyStmt->execute([
+            'user_id' => $user->id
+        ]);
+
+        $society = $societyStmt->fetch(\PDO::FETCH_ASSOC);
+
+        if (!$society || $eventRecord['society_id'] != $society['id']) {
+            return $this->errorResponse($response, "Unauthorized", 403);
+        }
+
+        // =========================
+        // 3. Get form data
+        // =========================
+        $data = $request->getParsedBody();
+        $files = $request->getUploadedFiles();
+
+        // =========================
+        // 4. Validation
+        // =========================
+        $requiredFields = ['title', 'description', 'venue', 'starts_at'];
+
+        foreach ($requiredFields as $field) {
+            if (!isset($data[$field]) || trim($data[$field]) === '') {
+                return $this->errorResponse(
+                    $response,
+                    "Field '{$field}' is required",
+                    400
+                );
+            }
+        }
+
+        // =========================
+        // 5. Existing files
+        // =========================
+        $imagePath = $eventRecord['image_path'];
+        $docPath = $eventRecord['supporting_document'];
+
+        // =========================
+        // 6. Image upload
+        // =========================
+        if (isset($files['image']) && $files['image']->getError() === UPLOAD_ERR_OK) {
+
+            $uploadedImage = $files['image'];
+
+            $allowedImageTypes = ['image/jpeg', 'image/png', 'image/webp'];
+
+            if (!in_array($uploadedImage->getClientMediaType(), $allowedImageTypes)) {
+                return $this->errorResponse($response, "Invalid image type", 400);
+            }
+
+            $uploadDir = __DIR__ . '/../../public/uploads/events/images';
+
+            $imagePath = $this->moveUploadedFile(
+                $uploadDir,
+                'uploads/events/images',
+                $uploadedImage
+            );
+
+            $oldImage = 'public/' . $eventRecord['image_path'];
+
+            if (!empty($eventRecord['image_path']) && file_exists($oldImage)) {
+                unlink($oldImage);
+            }
+        }
+
+        // =========================
+        // 7. Document upload
+        // =========================
+        if (isset($files['document']) && $files['document']->getError() === UPLOAD_ERR_OK) {
+
+            $uploadedDoc = $files['document'];
+
+            $allowedDocTypes = [
+                'application/pdf',
+                'application/msword',
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            ];
+
+            if (!in_array($uploadedDoc->getClientMediaType(), $allowedDocTypes)) {
+                return $this->errorResponse($response, "Invalid document type", 400);
+            }
+
+            $uploadDir = __DIR__ . '/../../public/uploads/events/docs';
+
+            $docPath = $this->moveUploadedFile(
+                $uploadDir,
+                'uploads/events/docs',
+                $uploadedDoc
+            );
+
+            $oldDoc = 'public/' . $eventRecord['supporting_document'];
+
+            if (!empty($eventRecord['supporting_document']) && file_exists($oldDoc)) {
+                unlink($oldDoc);
+            }
+        }
+
+        // =========================
+        // 8. Update DB (FIXED)
+        // =========================
+        $stmt = $db->prepare("
+        UPDATE events
+        SET
+            title = :title,
+            description = :description,
+            venue = :venue,
+            starts_at = :starts_at,
+            ends_at = :ends_at,
+            capacity = :capacity,
+            price = :price,
+            category_tags = :category_tags,
+            image_path = :image_path,
+            supporting_document = :supporting_document
+        WHERE id = :id
+    ");
+
+        $success = $stmt->execute([
+            'title' => trim($data['title']),
+            'description' => trim($data['description']),
+            'venue' => trim($data['venue']),
+            'starts_at' => $data['starts_at'],
+            'ends_at' => $data['ends_at'] ?? null,
+            'capacity' => isset($data['capacity']) ? (int)$data['capacity'] : null,
+            'price' => isset($data['price']) ? (float)$data['price'] : 0,
+            'category_tags' => $data['category_tags'] ?? '',
+            'image_path' => $imagePath,
+            'supporting_document' => $docPath,
+            'id' => $eventId
+        ]);
+
+        if (!$success) {
+            return $this->errorResponse($response, "Failed to update event", 500);
+        }
+
+        // =========================
+        // 9. Response
+        // =========================
+        $response->getBody()->write(json_encode([
+            'status' => 'success',
+            'message' => 'Event updated successfully',
+            'event_id' => $eventId
+        ]));
+
+        return $response->withHeader('Content-Type', 'application/json');
+    }
+
+    private function errorResponse(
+        Response $response,
+        string $message,
+        int $statusCode
+    ): Response {
+        $response->getBody()->write(json_encode([
+            'status' => 'error',
+            'message' => $message
+        ]));
+
+        return $response
+            ->withHeader('Content-Type', 'application/json')
+            ->withStatus($statusCode);
+    }
+
+    private function moveUploadedFile(
+        string $physicalDirectory,
+        string $dbDirectory,
+        UploadedFileInterface $uploadedFile
+    ): string {
+
+        if (!is_dir($physicalDirectory)) {
+            mkdir($physicalDirectory, 0777, true);
+        }
+
+        $originalName = pathinfo(
+            $uploadedFile->getClientFilename(),
+            PATHINFO_FILENAME
+        );
+
+        $extension = pathinfo(
+            $uploadedFile->getClientFilename(),
+            PATHINFO_EXTENSION
+        );
+
+        $filename = $originalName . '_' . time() . '_' . uniqid() . '.' . $extension;
+
+        $uploadedFile->moveTo(
+            $physicalDirectory . DIRECTORY_SEPARATOR . $filename
+        );
+
+        // Store relative URL path only
+        return $dbDirectory . '/' . $filename;
     }
 }

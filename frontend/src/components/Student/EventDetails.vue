@@ -5,6 +5,7 @@ import { useRoute, useRouter } from 'vue-router'
 const route = useRoute()
 const router = useRouter()
 const eventId = route.params.id
+const API_BASE = import.meta.env.VITE_API_BASE_URL
 
 // Component States
 const event = ref(null)
@@ -17,7 +18,7 @@ const currentRegistrants = ref(30)
 onMounted(async () => {
   try {
     // Fetch a single event's details from the backend
-    const response = await fetch(`http://localhost:8000/api/events`)
+    const response = await fetch(`${API_BASE}/api/events`)
     const json = await response.json()
     
     if (json.status === 'success') {
@@ -83,7 +84,7 @@ const handleRegisterClick = () => {
       
       <div class="relative w-full h-64 sm:h-72 bg-purple-200 dark:bg-purple-900 rounded-[2.5rem] overflow-hidden shadow-sm mb-6">
         <img 
-          :src="event.image_path || 'https://via.placeholder.com/600x400?text=EventORA'" 
+          :src="event.image_path ? `${API_BASE}/${event.image_path}` : 'https://via.placeholder.com/600x400?text=EventORA'" 
           :alt="event.title"
           class="w-full h-full object-cover"
         />

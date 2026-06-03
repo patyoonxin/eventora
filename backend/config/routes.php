@@ -14,10 +14,10 @@ return function (App $app) {
             $db = \App\Models\Database::connect();
             $stmt = $db->query("SHOW TABLES");
             $tables = $stmt->fetchAll();
-            
+
             $payload = json_encode([
-                "status" => "success", 
-                "message" => "Connected to database!", 
+                "status" => "success",
+                "message" => "Connected to database!",
                 "tables_found" => count($tables)
             ]);
             $response->getBody()->write($payload);
@@ -38,5 +38,11 @@ return function (App $app) {
         ->add(new JwtAuthMiddleware()); // This line locks the route down
 
     $app->get('/api/society/upcoming-events', [EventController::class, 'getSocietyUpcomingEvents'])
+        ->add(new JwtAuthMiddleware());
+
+    $app->get('/api/society/events/{id}', [EventController::class, 'getEvent'])
+        ->add(new JwtAuthMiddleware());
+
+    $app->post('/api/society/events/{id}/update',[EventController::class, 'update'])
         ->add(new JwtAuthMiddleware());
 };
