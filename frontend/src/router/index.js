@@ -73,7 +73,13 @@ const router = createRouter({
     {
       path: "/society/events/:id/edit",
       name: "SocietyEventEdit",
-      component: () => import("@/components/Society/SocietyEventEdit.vue"), 
+      component: () => import("@/components/Society/SocietyEventEdit.vue"),
+      props: true,
+    },
+    {
+      path: "/society/events/create",
+      name: "SocietyEventCreate",
+      component: () => import("@/components/Society/SocietyEventEdit.vue"),
       props: true,
     },
     {

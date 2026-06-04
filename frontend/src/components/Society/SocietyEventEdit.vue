@@ -1,11 +1,12 @@
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 const route = useRoute();
 const router = useRouter();
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL;
+const isEditMode = computed(() => !!route.params.id);
 
 const form = ref({
   title: "",
@@ -15,7 +16,7 @@ const form = ref({
   ends_at: "",
   venue: "",
   capacity: 0,
-  categories: [], // ✅ now ARRAY for multi-select
+  categories: [],
   image: null,
   document: null,
 });
@@ -28,7 +29,9 @@ const existingDoc = ref(null);
 
 const categoriesList = ["Academic", "Sports", "Cultural", "Religious"];
 
+
 onMounted(async () => {
+  if (!isEditMode.value) return;
   const token = localStorage.getItem("eventora_token");
 
   const response = await fetch(
@@ -100,17 +103,13 @@ const handleSave = async () => {
   formData.append("description", form.value.description);
   formData.append("price", form.value.price);
   formData.append("venue", form.value.venue);
-
   formData.append("starts_at", form.value.starts_at);
   formData.append("ends_at", form.value.ends_at);
-
   formData.append("capacity", form.value.capacity);
-
-  // ✅ convert array → string for backend
-  formData.append("category_tags", form.value.categories.join(","));
-
-  formData.append("existing_image", existingImage.value || "");
-  formData.append("existing_doc", existingDoc.value || "");
+  formData.append(
+    "category_tags",
+    form.value.categories.join(",")
+  );
 
   if (form.value.image) {
     formData.append("image", form.value.image);
@@ -120,24 +119,50 @@ const handleSave = async () => {
     formData.append("document", form.value.document);
   }
 
-  const response = await fetch(
-    `${API_BASE}/api/society/events/${route.params.id}/update`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("eventora_token")}`,
-      },
-      body: formData,
+  // Only send existing files in edit mode
+  if (isEditMode.value) {
+    formData.append(
+      "existing_image",
+      existingImage.value || ""
+    );
+
+    formData.append(
+      "existing_doc",
+      existingDoc.value || ""
+    );
+  }
+
+  const endpoint = isEditMode.value
+    ? `${API_BASE}/api/society/events/${route.params.id}/update`
+    : `${API_BASE}/api/society/events/add`;
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${localStorage.getItem(
+        "eventora_token"
+      )}`,
     },
-  );
+    body: formData,
+  });
 
   const json = await response.json();
 
-  if (response.ok) {
-    alert("Event updated successfully");
+  if (!response.ok) {
+    alert(json.message || "Operation failed");
+    return;
+  }
+
+  alert(
+    isEditMode.value
+      ? "Event updated successfully"
+      : "Event created successfully"
+  );
+
+  if (isEditMode.value) {
     router.push(`/society/events/${route.params.id}`);
   } else {
-    alert(json.message || "Update failed");
+    router.push(`/society/events/${json.event_id}`);
   }
 };
 </script>
@@ -289,9 +314,9 @@ const handleSave = async () => {
     <button
       @click="handleSave"
       type="button"
-      class="w-full py-5 bg-[#aa3bff] text-white font-black rounded-3xl uppercase tracking-widest shadow-lg active:scale-95 transition-all mt-4"
+      class="w-full py-5 text-base sm:text-lg font-bold text-white tracking-widest uppercase bg-gradient-to-r from-blue-600 to-purple-500 dark:from-blue-500 dark:to-purple-500 rounded-2xl shadow-md shadow-purple-500/20 hover:opacity-95 transition-opacity active:scale-[0.99] focus:outline-none"
     >
-      Save
+      {{ isEditMode ? "Update Event" : "Create Event" }}
     </button>
   </div>
 </template>

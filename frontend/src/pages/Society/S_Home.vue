@@ -95,7 +95,7 @@ const filteredAndSortedUpcomingEvents = computed(() => {
       </h2>
 
       <button
-        @click="router.push('/society/create-event')"
+        @click="router.push('/society/events/create')"
         type="button"
         class="w-12 h-12 flex items-center justify-center bg-[#aa3bff] hover:opacity-90 text-white rounded-2xl shadow-md transition-transform active:scale-95 focus:outline-none text-2xl font-bold"
         title="Create New Event"

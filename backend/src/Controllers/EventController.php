@@ -162,6 +162,276 @@ class EventController
             ->withHeader('Content-Type', 'application/json');
     }
 
+    // POST /api/society/events/add
+    public function add(Request $request, Response $response): Response
+    {
+        try {
+
+            // =========================
+            // 1. Database & User
+            // =========================
+            $db = \App\Models\Database::connect();
+            $user = $request->getAttribute('user');
+
+            // =========================
+            // 2. Find society managed by user
+            // =========================
+            $societyStmt = $db->prepare("
+            SELECT id
+            FROM societies
+            WHERE advisor_id = :user_id
+            LIMIT 1
+        ");
+
+            $societyStmt->execute([
+                'user_id' => $user->id
+            ]);
+
+            $society = $societyStmt->fetch(\PDO::FETCH_ASSOC);
+
+            if (!$society) {
+                return $this->errorResponse(
+                    $response,
+                    "You are not assigned to any society",
+                    403
+                );
+            }
+
+            $societyId = $society['id'];
+
+            // =========================
+            // 3. Get request data
+            // =========================
+            $data = $request->getParsedBody();
+            $files = $request->getUploadedFiles();
+
+            // =========================
+            // 4. Validation
+            // =========================
+            $requiredFields = [
+                'title',
+                'description',
+                'venue',
+                'starts_at'
+            ];
+
+            foreach ($requiredFields as $field) {
+
+                if (
+                    !isset($data[$field]) ||
+                    trim($data[$field]) === ''
+                ) {
+                    return $this->errorResponse(
+                        $response,
+                        "Field '{$field}' is required",
+                        400
+                    );
+                }
+            }
+
+            // Validate dates
+            if (
+                !empty($data['ends_at']) &&
+                strtotime($data['ends_at']) <= strtotime($data['starts_at'])
+            ) {
+                return $this->errorResponse(
+                    $response,
+                    "End date must be later than start date",
+                    400
+                );
+            }
+
+            // Validate capacity
+            if (
+                isset($data['capacity']) &&
+                $data['capacity'] !== '' &&
+                (int)$data['capacity'] <= 0
+            ) {
+                return $this->errorResponse(
+                    $response,
+                    "Capacity must be greater than 0",
+                    400
+                );
+            }
+
+            // Validate price
+            if (
+                isset($data['price']) &&
+                (float)$data['price'] < 0
+            ) {
+                return $this->errorResponse(
+                    $response,
+                    "Price cannot be negative",
+                    400
+                );
+            }
+
+            // =========================
+            // 5. Upload image
+            // =========================
+            $imagePath = null;
+
+            if (
+                isset($files['image']) &&
+                $files['image']->getError() === UPLOAD_ERR_OK
+            ) {
+
+                $uploadedImage = $files['image'];
+
+                $allowedImageTypes = [
+                    'image/jpeg',
+                    'image/png',
+                    'image/webp'
+                ];
+
+                if (!in_array(
+                    $uploadedImage->getClientMediaType(),
+                    $allowedImageTypes
+                )) {
+                    return $this->errorResponse(
+                        $response,
+                        "Only JPG, PNG and WEBP images are allowed",
+                        400
+                    );
+                }
+
+                $uploadDir = __DIR__ . '/../../public/uploads/events/images';
+
+                $imagePath = $this->moveUploadedFile(
+                    $uploadDir,
+                    'uploads/events/images',
+                    $uploadedImage
+                );
+            }
+
+            // =========================
+            // 6. Upload document
+            // =========================
+            $docPath = null;
+
+            if (
+                isset($files['document']) &&
+                $files['document']->getError() === UPLOAD_ERR_OK
+            ) {
+
+                $uploadedDoc = $files['document'];
+
+                $allowedDocTypes = [
+                    'application/pdf',
+                    'application/msword',
+                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                ];
+
+                if (!in_array(
+                    $uploadedDoc->getClientMediaType(),
+                    $allowedDocTypes
+                )) {
+                    return $this->errorResponse(
+                        $response,
+                        "Only PDF, DOC and DOCX files are allowed",
+                        400
+                    );
+                }
+
+                $uploadDir = __DIR__ . '/../../public/uploads/events/docs';
+
+                $docPath = $this->moveUploadedFile(
+                    $uploadDir,
+                    'uploads/events/docs',
+                    $uploadedDoc
+                );
+            }
+
+            // =========================
+            // 7. Insert event
+            // =========================
+            $stmt = $db->prepare("
+            INSERT INTO events (
+                society_id,
+                title,
+                description,
+                venue,
+                starts_at,
+                ends_at,
+                capacity,
+                price,
+                status,
+                supporting_document,
+                image_path,
+                category_tags
+            )
+            VALUES (
+                :society_id,
+                :title,
+                :description,
+                :venue,
+                :starts_at,
+                :ends_at,
+                :capacity,
+                :price,
+                :status,
+                :supporting_document,
+                :image_path,
+                :category_tags
+            )
+        ");
+
+            $success = $stmt->execute([
+                'society_id' => $societyId,
+                'title' => trim($data['title']),
+                'description' => trim($data['description']),
+                'venue' => trim($data['venue']),
+                'starts_at' => $data['starts_at'],
+                'ends_at' => !empty($data['ends_at'])
+                    ? $data['ends_at']
+                    : null,
+                'capacity' => !empty($data['capacity'])
+                    ? (int)$data['capacity']
+                    : null,
+                'price' => !empty($data['price'])
+                    ? (float)$data['price']
+                    : 0,
+                'status' => 'pending',
+                'supporting_document' => $docPath,
+                'image_path' => $imagePath,
+                'category_tags' => $data['category_tags'] ?? ''
+            ]);
+
+            if (!$success) {
+                return $this->errorResponse(
+                    $response,
+                    "Failed to create event",
+                    500
+                );
+            }
+
+            // =========================
+            // 8. Get inserted ID
+            // =========================
+            $eventId = $db->lastInsertId();
+
+            // =========================
+            // 9. Success response
+            // =========================
+            $response->getBody()->write(json_encode([
+                'status' => 'success',
+                'message' => 'Event created successfully',
+                'event_id' => $eventId
+            ]));
+
+            return $response
+                ->withHeader('Content-Type', 'application/json')
+                ->withStatus(201);
+        } catch (\Exception $e) {
+
+            return $this->errorResponse(
+                $response,
+                $e->getMessage(),
+                500
+            );
+        }
+    }
+
     // POST /api/society/events/{id}/update
     public function update(Request $request, Response $response, array $args): Response
     {
