@@ -1,93 +1,72 @@
 <script setup>
-import { ref } from "vue";
-// Import useRouter to handle redirecting the user after a successful login
-import { useRouter } from "vue-router";
+import { ref } from "vue"
+import { useRouter } from "vue-router"
+import { useAuthStore } from "@/stores/auth" // [1] Import the Pinia store
 
-const router = useRouter();
+const router = useRouter()
+const authStore = useAuthStore() // [2] Initialize your store instance
 
-const email = ref("");
-const password = ref("");
-const rememberMe = ref(false);
-const showPassword = ref(false);
-const errors = ref({});
-const isSubmitting = ref(false); // Tracks loading state for the submit button
-const API_BASE = import.meta.env.VITE_API_BASE_URL;
+const email = ref("")
+const password = ref("")
+const rememberMe = ref(false)
+const showPassword = ref(false)
+const errors = ref({})
+const isSubmitting = ref(false)
 
 const handleSubmit = async () => {
-  errors.value = {};
+  errors.value = {}
 
-  // Basic validation
+  // Basic validation (Keep this pristine!)
   if (!email.value.trim()) {
-    errors.value.email = "Email is required";
+    errors.value.email = "Email is required"
   } else if (!isValidEmail(email.value)) {
-    errors.value.email = "Please enter a valid email";
+    errors.value.email = "Please enter a valid email"
   }
 
   if (!password.value) {
-    errors.value.password = "Password is required";
+    errors.value.password = "Password is required"
   }
 
-  // If frontend validation passes, proceed with API hit
+  // If frontend validation passes, trigger Pinia action
   if (Object.keys(errors.value).length === 0) {
-    isSubmitting.value = true;
+    isSubmitting.value = true
 
     try {
-      const response = await fetch(`${API_BASE}/api/login`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        body: JSON.stringify({
-          email: email.value,
-          password: password.value,
-        }),
-      });
+      // [3] Call your clean global login action instead of local fetch
+      const loggedInUser = await authStore.login(email.value, password.value)
 
-      const data = await response.json();
+      console.log("Login successful via Pinia!", loggedInUser)
 
-      if (!response.ok) {
-        // If back-end validation fails, display server error message
-        throw new Error(data.error || "Invalid server credentials");
-      }
-
-      // SUCCESS WORKFLOW:
-      console.log("Login successful!", data);
-
-      // 1. Store the JWT token and basic user details in browser memory
-      localStorage.setItem("eventora_token", data.token);
-      localStorage.setItem("eventora_user", JSON.stringify(data.user));
-
-      // 2. Redirect the user based on their specific dashboard role requirements [cite: 16, 61]
-      if (data.user.role === "faculty_admin") {
-        router.push("/admin/home");
-      } else if (data.user.role === "organiser") {
-        router.push("/society/home");
+      // [4] Use the returned user entity or authStore.userRole to process role route splits 
+      if (loggedInUser.role === "faculty_admin") {
+        router.push("/admin/home")
+      } else if (loggedInUser.role === "organiser") {
+        router.push("/society/home")
       } else {
-        router.push("/home"); // Standard student/attendee dashboard route
+        router.push("/home")
       }
     } catch (err) {
-      // Assign the backend error message directly to our password feedback block
+      // Assign the backend error message directly to your existing feedback blocks
       errors.value.password =
-        err.message || "Unable to connect to authentication server.";
+        err.message || "Unable to connect to authentication server."
     } finally {
-      isSubmitting.value = false;
+      isSubmitting.value = false
     }
   }
-};
+}
 
 const isValidEmail = (email) => {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
-};
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  return emailRegex.test(email)
+}
 
 const togglePasswordVisibility = () => {
-  showPassword.value = !showPassword.value;
-};
+  showPassword.value = !showPassword.value
+}
 
 const handleForgotPassword = () => {
-  console.log("Forgot password clicked");
-};
+  console.log("Forgot password clicked")
+}
 </script>
 
 <template>
@@ -195,8 +174,8 @@ const handleForgotPassword = () => {
                 @click="togglePasswordVisibility"
                 :aria-label="showPassword ? 'Hide password' : 'Show password'"
               >
-                <span v-if="showPassword" class="select-none">👁️‍🗨️</span>
-                <span v-else class="select-none">👁️‍🗨️</span>
+                <span v-if="showPassword" class="pi pi-eye-slash"></span>
+                <span v-else class="pi pi-eye"></span>
               </button>
             </div>
             <p
