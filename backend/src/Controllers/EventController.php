@@ -683,4 +683,50 @@ class EventController
 
         return $response->withHeader('Content-Type', 'application/json');
     }
+
+    public function getPendingEvents(Request $request, Response $response): Response
+    {
+        
+        // 2. Connect to Database using your static model link
+        $db = \App\Models\Database::connect();
+
+        try {
+            // Relational SQL query to grab the event details along with the host society name
+            // If you want to use the category/price multi-select filters directly on the admin list page:
+           $stmt = $db->prepare("
+                SELECT e.*, s.name AS society_name 
+                FROM events e
+                JOIN societies s ON e.society_id = s.id
+                WHERE e.status = :status
+                ORDER BY e.starts_at ASC
+            ");
+            
+            $stmt->execute([
+                'status' => 'pending'
+            ]);
+
+            $pendingEvents = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+            // 3. Return shaped response data structure matching A_Home.vue expectations
+            $response->getBody()->write(json_encode([
+                "status" => "success",
+                "data" => $pendingEvents
+            ]));
+            
+            return $response
+                ->withHeader('Content-Type', 'application/json')
+                ->withStatus(200);
+
+        } catch (\PDOException $e) {
+            // Safe logging without leaking DB architecture strings to public clients
+            $response->getBody()->write(json_encode([
+                "status" => "error",
+                "message" => "Internal Database Error. Please contact systems administrator."
+            ]));
+            
+            return $response
+                ->withHeader('Content-Type', 'application/json')
+                ->withStatus(500);
+        }
+    }
 }
