@@ -1,15 +1,16 @@
 <script setup>
 import { ref, onMounted, computed } from "vue";
 import { useRouter } from "vue-router";
+import { useAuthStore } from "@/stores/auth"; 
 import EventCard from "@/components/Student/EventCard.vue";
-import FilterSortBar from "@/components/SearchFilterSortBar.vue"; // Import search UI component
+import FilterSortBar from "@/components/SearchFilterSortBar.vue"; 
 
 const router = useRouter();
 const upcomingEvents = ref([]);
 const isLoading = ref(true);
 const API_BASE = import.meta.env.VITE_API_BASE_URL;
+const authStore = useAuthStore();
 
-// Isolated Filter UI State management variables
 const searchQuery = ref("");
 const sortBy = ref("date-asc");
 const selectedCategories = ref([]);
@@ -18,14 +19,12 @@ const categoriesList = ["Academic", "Sports", "Cultural", "Religious"];
 
 onMounted(async () => {
   try {
-    const token = localStorage.getItem("eventora_token");
-
     const response = await fetch(
       `${API_BASE}/api/society/upcoming-events`,
       {
         headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: "application/json",
+          "Authorization": `Bearer ${authStore.token}`,
+          "Accept": "application/json",
         },
       },
     );

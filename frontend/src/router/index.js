@@ -8,7 +8,6 @@ import History from "../pages/History.vue";
 
 // 2. Import Society Role Pages
 import S_Home from "../pages/Society/S_Home.vue";
-import S_AddEvent from "../pages/Society/S_AddEvent.vue";
 import S_History from "../pages/Society/S_History.vue";
 import S_ScanQR from "../pages/Society/S_ScanQR.vue";
 import S_Analytics from "../pages/Society/S_Analytics.vue";

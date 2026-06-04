@@ -1,12 +1,13 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useAuthStore } from "@/stores/auth"; 
 
 const route = useRoute()
 const router = useRouter()
 const eventId = route.params.id
 const API_BASE = import.meta.env.VITE_API_BASE_URL
-
+const authStore = useAuthStore();
 
 // Component States
 const event = ref(null)
@@ -15,12 +16,9 @@ const errorMessage = ref('')
 
 onMounted(async () => {
   try {
-    const token = localStorage.getItem('eventora_token')
-    
-    // We fetch from our PROTECTED past-events endpoint to get the ticket_number
     const response = await fetch(`${API_BASE}/api/users/past-events`, {
       headers: {
-        'Authorization': `Bearer ${token}`,
+        'Authorization': `Bearer ${authStore.token}`,
         'Accept': 'application/json'
       }
     })

@@ -1,12 +1,14 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue' // 1. Fixed: Added computed import
+import { ref, onMounted, computed } from 'vue'
+import { useAuthStore } from "@/stores/auth"; 
 import EventCard from '@/components/Student/EventCard.vue'
 import FilterSortBar from "@/components/SearchFilterSortBar.vue"
 
 const pastEvents = ref([])
 const isLoading = ref(true)
-const errorMessage = ref("") // 3. Fixed: Re-added missing state variable
+const errorMessage = ref("") 
 const API_BASE = import.meta.env.VITE_API_BASE_URL;
+const authStore = useAuthStore(); 
 
 // Isolated Filter UI State management variables
 const searchQuery = ref("");
@@ -18,15 +20,12 @@ const categoriesList = ["Academic", "Sports", "Cultural", "Religious"];
 
 onMounted(async () => {
   try {
-    // Retrieve our active encrypted session token string from browser storage
-    const token = localStorage.getItem('eventora_token')
-
     const response = await fetch(`${API_BASE}/api/users/past-events`, {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${token}`, 
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
+        "Authorization": `Bearer ${authStore.token}`, 
+        "Accept": "application/json",
+        "Content-Type": "application/json"
       }
     })
     

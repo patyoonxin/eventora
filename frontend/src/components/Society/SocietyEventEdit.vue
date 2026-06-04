@@ -1,9 +1,11 @@
 <script setup>
 import { ref, onMounted, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import { useAuthStore } from "@/stores/auth"; 
 
 const route = useRoute();
 const router = useRouter();
+const authStore = useAuthStore();
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL;
 const isEditMode = computed(() => !!route.params.id);
@@ -32,7 +34,7 @@ const categoriesList = ["Academic", "Sports", "Cultural", "Religious"];
 
 onMounted(async () => {
   if (!isEditMode.value) return;
-  const token = localStorage.getItem("eventora_token");
+  const token = authStore.token;
 
   const response = await fetch(
     `${API_BASE}/api/society/events/${route.params.id}`,
@@ -139,9 +141,7 @@ const handleSave = async () => {
   const response = await fetch(endpoint, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${localStorage.getItem(
-        "eventora_token"
-      )}`,
+      "Authorization": `Bearer ${authStore.token}`,
     },
     body: formData,
   });
