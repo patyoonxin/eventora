@@ -167,15 +167,11 @@ class EventController
     {
         try {
 
-            // =========================
             // 1. Database & User
-            // =========================
             $db = \App\Models\Database::connect();
             $user = $request->getAttribute('user');
 
-            // =========================
             // 2. Find society managed by user
-            // =========================
             $societyStmt = $db->prepare("
             SELECT id
             FROM societies
@@ -199,15 +195,11 @@ class EventController
 
             $societyId = $society['id'];
 
-            // =========================
             // 3. Get request data
-            // =========================
             $data = $request->getParsedBody();
             $files = $request->getUploadedFiles();
 
-            // =========================
             // 4. Validation
-            // =========================
             $requiredFields = [
                 'title',
                 'description',
@@ -266,9 +258,7 @@ class EventController
                 );
             }
 
-            // =========================
             // 5. Upload image
-            // =========================
             $imagePath = null;
 
             if (
@@ -304,9 +294,7 @@ class EventController
                 );
             }
 
-            // =========================
             // 6. Upload document
-            // =========================
             $docPath = null;
 
             if (
@@ -342,9 +330,7 @@ class EventController
                 );
             }
 
-            // =========================
             // 7. Insert event
-            // =========================
             $stmt = $db->prepare("
             INSERT INTO events (
                 society_id,
@@ -405,14 +391,10 @@ class EventController
                 );
             }
 
-            // =========================
             // 8. Get inserted ID
-            // =========================
             $eventId = $db->lastInsertId();
 
-            // =========================
             // 9. Success response
-            // =========================
             $response->getBody()->write(json_encode([
                 'status' => 'success',
                 'message' => 'Event created successfully',
@@ -440,9 +422,7 @@ class EventController
 
         $user = $request->getAttribute('user');
 
-        // =========================
         // 1. Get event
-        // =========================
         $stmt = $db->prepare("
         SELECT id, society_id, image_path, supporting_document
         FROM events
@@ -456,9 +436,7 @@ class EventController
             return $this->errorResponse($response, "Event not found", 404);
         }
 
-        // =========================
         // 2. Fix ownership check (IMPORTANT)
-        // =========================
         $societyStmt = $db->prepare("
         SELECT id FROM societies WHERE advisor_id = :user_id LIMIT 1
     ");
@@ -473,15 +451,11 @@ class EventController
             return $this->errorResponse($response, "Unauthorized", 403);
         }
 
-        // =========================
         // 3. Get form data
-        // =========================
         $data = $request->getParsedBody();
         $files = $request->getUploadedFiles();
 
-        // =========================
         // 4. Validation
-        // =========================
         $requiredFields = ['title', 'description', 'venue', 'starts_at'];
 
         foreach ($requiredFields as $field) {
@@ -494,15 +468,11 @@ class EventController
             }
         }
 
-        // =========================
         // 5. Existing files
-        // =========================
         $imagePath = $eventRecord['image_path'];
         $docPath = $eventRecord['supporting_document'];
 
-        // =========================
         // 6. Image upload
-        // =========================
         if (isset($files['image']) && $files['image']->getError() === UPLOAD_ERR_OK) {
 
             $uploadedImage = $files['image'];
@@ -528,9 +498,7 @@ class EventController
             }
         }
 
-        // =========================
         // 7. Document upload
-        // =========================
         if (isset($files['document']) && $files['document']->getError() === UPLOAD_ERR_OK) {
 
             $uploadedDoc = $files['document'];
@@ -560,9 +528,7 @@ class EventController
             }
         }
 
-        // =========================
-        // 8. Update DB (FIXED)
-        // =========================
+        // 8. Update DB 
         $stmt = $db->prepare("
         UPDATE events
         SET
@@ -597,9 +563,7 @@ class EventController
             return $this->errorResponse($response, "Failed to update event", 500);
         }
 
-        // =========================
         // 9. Response
-        // =========================
         $response->getBody()->write(json_encode([
             'status' => 'success',
             'message' => 'Event updated successfully',
@@ -652,5 +616,71 @@ class EventController
 
         // Store relative URL path only
         return $dbDirectory . '/' . $filename;
+    }
+
+    public function cancel(Request $request, Response $response, array $args): Response
+    {
+        $db = \App\Models\Database::connect();
+        $eventId = $args['id'];
+
+        $user = $request->getAttribute('user');
+
+        // 1. Get event
+        $stmt = $db->prepare("
+            SELECT id, society_id, status
+            FROM events
+            WHERE id = :id
+        ");
+
+        $stmt->execute(['id' => $eventId]);
+        $event = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+        if (!$event) {
+            return $this->errorResponse($response, "Event not found", 404);
+        }
+
+        // 2. Verify ownership (same logic as your update)
+        $societyStmt = $db->prepare("
+        SELECT id 
+        FROM societies 
+        WHERE advisor_id = :user_id 
+        LIMIT 1
+    ");
+
+        $societyStmt->execute([
+            'user_id' => $user->id
+        ]);
+
+        $society = $societyStmt->fetch(\PDO::FETCH_ASSOC);
+
+        if (!$society || $event['society_id'] != $society['id']) {
+            return $this->errorResponse($response, "Unauthorized", 403);
+        }
+
+        // 3. Prevent double cancel
+        if ($event['status'] === 'cancelled') {
+            return $this->errorResponse($response, "Event already cancelled", 400);
+        }
+
+        // 4. Update status
+        $update = $db->prepare("
+            UPDATE events
+            SET status = 'cancelled'
+            WHERE id = :id
+        ");
+
+        $success = $update->execute(['id' => $eventId]);
+
+        if (!$success) {
+            return $this->errorResponse($response, "Failed to cancel event", 500);
+        }
+
+        // 5. Response
+        $response->getBody()->write(json_encode([
+            'status' => 'success',
+            'message' => 'Event cancelled successfully'
+        ]));
+
+        return $response->withHeader('Content-Type', 'application/json');
     }
 }

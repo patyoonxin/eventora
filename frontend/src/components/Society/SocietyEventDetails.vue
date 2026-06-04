@@ -84,9 +84,27 @@ const handleEditDetails = () => {
   router.push(`/society/events/${eventId}/edit`);
 };
 
-const handleCancelEvent = () => {
-  if (confirm("Are you absolute sure you want to cancel this event request?")) {
-    alert("Cancellation request triggered.");
+const handleCancelEvent = async () => {
+  if (!confirm('Are you sure to cancel this event?')) return;
+
+  const response = await fetch(
+    `${API_BASE}/api/society/events/${eventId}/cancel`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("eventora_token")}`,
+        "Content-Type": "application/json"
+      }
+    }
+  );
+
+  const json = await response.json();
+
+  if (response.ok) {
+    alert("Event cancelled successfully");
+    event.value.status = "cancelled"; // instant UI update
+  } else {
+    alert(json.message || "Failed to cancel event");
   }
 };
 </script>
@@ -198,6 +216,7 @@ const handleCancelEvent = () => {
         </div>
         <div>
           <button
+            :disabled="event.status === 'cancelled'"
             @click="handleCancelEvent"
             type="button"
             class="text-xs font-bold text-red-400/90 dark:text-red-400/70 hover:text-red-500 underline uppercase tracking-wider bg-transparent p-0 border-none cursor-pointer"

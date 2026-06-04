@@ -48,4 +48,7 @@ return function (App $app) {
 
     $app->post('/api/society/events/add', [EventController::class, 'add'])
         ->add(new JwtAuthMiddleware());
+
+    $app->post('/api/society/events/{id}/cancel', [EventController::class, 'cancel'])
+        ->add(new JwtAuthMiddleware());
 };
