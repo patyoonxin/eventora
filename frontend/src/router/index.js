@@ -106,6 +106,12 @@ const router = createRouter({
       meta: { role: "admin" },
     },
     {
+      path: "/admin/events/:id", 
+      name: "EventReviewDetails", 
+      component: () => import("@/components/Admin/EventReviewDetails.vue"), 
+      props: true, 
+    },
+    {
       path: "/admin/all-events",
       name: "A_AllEvent",
       component: A_AllEvent,

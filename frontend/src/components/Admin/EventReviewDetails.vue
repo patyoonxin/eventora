@@ -9,34 +9,26 @@ const eventId = route.params.id;
 const API_BASE = import.meta.env.VITE_API_BASE_URL;
 const authStore = useAuthStore();
 
-// Component States
 const event = ref(null);
 const isLoading = ref(true);
 const errorMessage = ref("");
+const isSubmitting = ref(false); // Prevents duplicate double-clicks
 
+// Optimized: Fetch ONLY this single event by its ID
 onMounted(async () => {
   try {
-    // Fetch society events from your dynamic backend endpoint
-    const response = await fetch(
-      `${API_BASE}/api/society/upcoming-events`,
-      {
-        headers: {
-          "Authorization": `Bearer ${authStore.token}`,
-          "Accept": "application/json",
-        },
+    const response = await fetch(`${API_BASE}/api/admin/events/${eventId}`, {
+      headers: {
+        "Authorization": `Bearer ${authStore.token}`,
+        "Accept": "application/json",
       },
-    );
+    });
     const json = await response.json();
 
-    if (json.status === "success") {
-      const foundEvent = json.data.find((e) => e.id == eventId);
-      if (foundEvent) {
-        event.value = foundEvent;
-      } else {
-        throw new Error("Event could not be found in your society inventory.");
-      }
+    if (response.ok && json.status === "success") {
+      event.value = json.data;
     } else {
-      throw new Error(json.message);
+      throw new Error(json.message || "Event could not be found.");
     }
   } catch (err) {
     errorMessage.value = err.message || "Failed to safely mount event metrics.";
@@ -54,59 +46,53 @@ const tagsArray = computed(() => {
 const getTagStyles = (tag) => {
   const cleanTag = tag.toLowerCase();
   const styleMap = {
-    academic:
-      "bg-blue-100 text-blue-600 dark:bg-blue-950/40 dark:text-blue-300",
-    sports:
-      "bg-emerald-100 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300",
-    cultural:
-      "bg-amber-100 text-amber-600 dark:bg-amber-950/40 dark:text-amber-300",
-    religious:
-      "bg-purple-100 text-purple-600 dark:bg-purple-950/40 dark:text-purple-300",
+    academic: "bg-blue-100 text-blue-600 dark:bg-blue-950/40 dark:text-blue-300",
+    sports: "bg-emerald-100 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300",
+    cultural: "bg-amber-100 text-amber-600 dark:bg-amber-950/40 dark:text-amber-300",
+    religious: "bg-purple-100 text-purple-600 dark:bg-purple-950/40 dark:text-purple-300",
   };
-  return (
-    styleMap[cleanTag] ||
-    "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300"
-  );
+  return styleMap[cleanTag] || "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300";
 };
 
 const formatDate = (dateString) => {
   if (!dateString) return "";
   const date = new Date(dateString);
-  return date.toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
+  return date.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
 };
 
-// Button Click Stubs (Frontend Actions)
-const handleEditDetails = () => {
-  router.push(`/society/events/${eventId}/edit`);
-};
-
-const handleCancelEvent = async () => {
-  if (!confirm('Are you sure to cancel this event?')) return;
-
-  const response = await fetch(
-    `${API_BASE}/api/society/events/${eventId}/cancel`,
-    {
+// Centralized Action Workflow function for both buttons
+const submitReview = async (newStatus) => {
+  if (!confirm(`Are you sure you want to set this event status to ${newStatus}?`)) return;
+  
+  isSubmitting.value = true;
+  try {
+    const response = await fetch(`${API_BASE}/api/admin/events/${eventId}/review`, {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${authStore.token}`,
-        "Content-Type": "application/json"
-      }
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+      },
+      body: JSON.stringify({ status: newStatus }) // 'approved' or 'rejected'
+    });
+
+    const json = await response.json();
+
+    if (response.ok && json.status === "success") {
+      alert(`Event has been successfully ${newStatus}!`);
+      router.push('/admin/home'); 
+    } else {
+      throw new Error(json.message || `Failed to ${newStatus} event.`);
     }
-  );
-
-  const json = await response.json();
-
-  if (response.ok) {
-    alert("Event cancelled successfully");
-    event.value.status = "cancelled"; // instant UI update
-  } else {
-    alert(json.message || "Failed to cancel event");
+  } catch (err) {
+    alert(err.message);
+  } finally {
+    isSubmitting.value = false;
   }
 };
+
+const handleReject = () => submitReview('rejected');
+const handleApprove = () => submitReview('approved');
 </script>
 
 <template>
@@ -214,40 +200,25 @@ const handleCancelEvent = async () => {
             event.status 
           }}</span>
         </div>
-        <div>
-          <button
-            :disabled="event.status === 'cancelled'"
-            @click="handleCancelEvent"
-            type="button"
-            class="text-xs font-bold text-red-400/90 dark:text-red-400/70 hover:text-red-500 underline uppercase tracking-wider bg-transparent p-0 border-none cursor-pointer"
-          >
-            Cancel Event
-          </button>
-        </div>
       </div>
 
       <div
         class="mt-auto pt-8 pb-6 flex items-center gap-4 bg-white dark:bg-gray-900"
       >
-        <div
+        <button
+            @click="handleReject"
+            type="button"
           class="flex items-center justify-center gap-2 px-5 py-4 bg-purple-100 dark:bg-purple-950/60 rounded-2xl min-w-[110px] sm:min-w-[130px]"
         >
-          <span
-            class="text-base text-gray-700 dark:text-gray-300 pi pi-users"
-          ></span>
-          <span
-            class="text-base sm:text-lg font-bold text-gray-800 dark:text-gray-200"
-          >
-            31/{{ event.capacity || 100 }}
-          </span>
-        </div>
+          Reject          
+        </button>
 
         <button
-          @click="handleEditDetails"
+          @click="handleApprove"
           type="button"
           class="flex-1 py-4 text-base sm:text-lg font-black text-white tracking-[0.2em] uppercase bg-gradient-to-r from-blue-600 to-purple-500 rounded-2xl shadow-md shadow-purple-500/20 hover:opacity-95 transition-opacity active:scale-[0.99]"
         >
-          Edit Details
+          Approve
         </button>
       </div>
     </div>

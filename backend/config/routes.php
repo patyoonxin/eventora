@@ -54,4 +54,10 @@ return function (App $app) {
 
     $app->get('/api/admin/pending-events', [EventController::class, 'getPendingEvents'])
         ->add(new JwtAuthMiddleware());
+
+    $app->get('/api/admin/events/{id}', [EventController::class, 'getSinglePendingEvent'])
+        ->add(new JwtAuthMiddleware());
+
+    $app->post('/api/admin/events/{id}/review', [EventController::class, 'reviewEvent'])
+        ->add(new JwtAuthMiddleware());
 };

@@ -729,4 +729,87 @@ class EventController
                 ->withStatus(500);
         }
     }
+
+    // GET SINGLE PENDING EVENT WITH RELATIONAL JOIN
+    public function getSinglePendingEvent(Request $request, Response $response, array $args): Response
+    {
+        //System Administrator Role Verification
+        //$tokenData = $request->getAttribute('decoded_token_data'); 
+        //if (!$tokenData || $tokenData['role'] !== 'faculty_admin') {
+        //    $response->getBody()->write(json_encode(["status" => "error", "message" => "Unauthorized admin access."]));
+        //    return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        //}
+
+        $eventId = $args['id'];
+        $db = \App\Models\Database::connect();
+
+        try {
+            $stmt = $db->prepare("
+                SELECT e.*, s.name AS society_name 
+                FROM events e
+                JOIN societies s ON e.society_id = s.id
+                WHERE e.id = :id
+            ");
+            $stmt->execute(['id' => $eventId]);
+            $event = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+            if (!$event) {
+                $response->getBody()->write(json_encode(["status" => "error", "message" => "Event parameters not found."]));
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(404);
+            }
+
+            $response->getBody()->write(json_encode(["status" => "success", "data" => $event]));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+
+        } catch (\PDOException $e) {
+            $response->getBody()->write(json_encode(["status" => "error", "message" => "Internal Database Error."]));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+        }
+    }
+
+    //2. PROCESS ADMINISTRATIVE APPROVAL OR REJECTION MUTATION
+    public function reviewEvent(Request $request, Response $response, array $args): Response
+    {
+        // Guard Check
+        //$tokenData = $request->getAttribute('decoded_token_data'); 
+        //if (!$tokenData || $tokenData['role'] !== 'faculty_admin') {
+        //    $response->getBody()->write(json_encode(["status" => "error", "message" => "Unauthorized admin access."]));
+        //    return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        //}
+
+        $eventId = $args['id'];
+        $input = json_encode($request->getParsedBody());
+        $data = json_decode($input, true);
+        $newStatus = $data['status'] ?? null;
+
+        // Input Sanity Check validating against your column ENUM constraints
+        if (!in_array($newStatus, ['approved', 'rejected'])) {
+            $response->getBody()->write(json_encode(["status" => "error", "message" => "Invalid modification status payload criteria."]));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
+        }
+
+        $db = \App\Models\Database::connect();
+
+        try {
+            $stmt = $db->prepare("
+                UPDATE events 
+                SET status = :status 
+                WHERE id = :id
+            ");
+            $stmt->execute([
+                'status' => $newStatus,
+                'id' => $eventId
+            ]);
+
+            $response->getBody()->write(json_encode([
+                "status" => "success",
+                "message" => "Event submission updated to " . $newStatus
+            ]));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+
+        } catch (\PDOException $e) {
+            $response->getBody()->write(json_encode(["status" => "error", "message" => "Database mutation execution error."]));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+        }
+    }
 }
