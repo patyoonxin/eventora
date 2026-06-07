@@ -100,6 +100,12 @@ const router = createRouter({
       meta: { role: "society" },
     },
     {
+      path: "/society/past-events/:id",
+      name: "SocietyPastEventDetails",
+      component: () => import("@/components/Society/SocietyPastEventDetails.vue"),
+      props: true,
+    },
+    {
       path: "/society/analytics",
       name: "S_Analytics",
       component: S_Analytics,

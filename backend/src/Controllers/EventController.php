@@ -686,21 +686,21 @@ class EventController
 
     public function getPendingEvents(Request $request, Response $response): Response
     {
-        
+
         // 2. Connect to Database using your static model link
         $db = \App\Models\Database::connect();
 
         try {
             // Relational SQL query to grab the event details along with the host society name
             // If you want to use the category/price multi-select filters directly on the admin list page:
-           $stmt = $db->prepare("
+            $stmt = $db->prepare("
                 SELECT e.*, s.name AS society_name 
                 FROM events e
                 JOIN societies s ON e.society_id = s.id
                 WHERE e.status = :status
                 ORDER BY e.starts_at ASC
             ");
-            
+
             $stmt->execute([
                 'status' => 'pending'
             ]);
@@ -712,18 +712,17 @@ class EventController
                 "status" => "success",
                 "data" => $pendingEvents
             ]));
-            
+
             return $response
                 ->withHeader('Content-Type', 'application/json')
                 ->withStatus(200);
-
         } catch (\PDOException $e) {
             // Safe logging without leaking DB architecture strings to public clients
             $response->getBody()->write(json_encode([
                 "status" => "error",
                 "message" => "Internal Database Error. Please contact systems administrator."
             ]));
-            
+
             return $response
                 ->withHeader('Content-Type', 'application/json')
                 ->withStatus(500);
@@ -760,7 +759,6 @@ class EventController
 
             $response->getBody()->write(json_encode(["status" => "success", "data" => $event]));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
-
         } catch (\PDOException $e) {
             $response->getBody()->write(json_encode(["status" => "error", "message" => "Internal Database Error."]));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
@@ -806,7 +804,6 @@ class EventController
                 "message" => "Event submission updated to " . $newStatus
             ]));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
-
         } catch (\PDOException $e) {
             $response->getBody()->write(json_encode(["status" => "error", "message" => "Database mutation execution error."]));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
@@ -814,46 +811,101 @@ class EventController
     }
 
     public function getStudentEvent(Request $request, Response $response, array $args): Response
-{
-    $db = \App\Models\Database::connect();
-    $eventId = $args['id'];
+    {
+        $db = \App\Models\Database::connect();
+        $eventId = $args['id'];
 
-    try {
-        // Only return events student is allowed to see (IMPORTANT)
-        $stmt = $db->prepare("
+        try {
+            // Only return events student is allowed to see (IMPORTANT)
+            $stmt = $db->prepare("
             SELECT id, title
             FROM events
             WHERE id = :id
         ");
 
-        $stmt->execute([
-            'id' => $eventId
-        ]);
+            $stmt->execute([
+                'id' => $eventId
+            ]);
 
-        $event = $stmt->fetch(\PDO::FETCH_ASSOC);
+            $event = $stmt->fetch(\PDO::FETCH_ASSOC);
 
-        if (!$event) {
+            if (!$event) {
+                $response->getBody()->write(json_encode([
+                    "status" => "error",
+                    "message" => "Event not found"
+                ]));
+                return $response->withStatus(404)->withHeader('Content-Type', 'application/json');
+            }
+
+            $response->getBody()->write(json_encode([
+                "status" => "success",
+                "data" => $event
+            ]));
+
+            return $response->withHeader('Content-Type', 'application/json');
+        } catch (\Exception $e) {
             $response->getBody()->write(json_encode([
                 "status" => "error",
-                "message" => "Event not found"
+                "message" => "Server error"
             ]));
-            return $response->withStatus(404)->withHeader('Content-Type', 'application/json');
+
+            return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
         }
-
-        $response->getBody()->write(json_encode([
-            "status" => "success",
-            "data" => $event
-        ]));
-
-        return $response->withHeader('Content-Type', 'application/json');
-
-    } catch (\Exception $e) {
-        $response->getBody()->write(json_encode([
-            "status" => "error",
-            "message" => "Server error"
-        ]));
-
-        return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
     }
-}
+
+    // GET /api/society/past-events
+    public function getSocietyPastEvents(Request $request, Response $response): Response
+    {
+        try {
+            $db = \App\Models\Database::connect();
+
+            // 1. Extract user details injected by your working JwtAuthMiddleware
+            $user = $request->getAttribute('user');
+            $userId = $user->id; // The logged-in organiser's User ID
+
+            // 2. Dynamic Lookup: Find the Society ID managed by this advisor/organiser
+            $societyQuery = "SELECT id FROM societies WHERE advisor_id = :user_id LIMIT 1";
+            $socStmt = $db->prepare($societyQuery);
+            $socStmt->execute(['user_id' => $userId]);
+            $society = $socStmt->fetch();
+
+            // Safety check: If this user isn't assigned as an advisor to any society, block them safely
+            if (!$society) {
+                $response->getBody()->write(json_encode([
+                    "status" => "error",
+                    "message" => "Unauthorized: You are not assigned as an advisor to any active society."
+                ]));
+                return $response->withStatus(403)->withHeader('Content-Type', 'application/json');
+            }
+
+            $societyId = $society['id']; // This is your dynamic ID! (e.g., 1, 2, or 5 depending on who logs in)
+
+            // 3. Fetch only PAST events belonging to this dynamic society
+            $query = "
+                SELECT e.*, s.name AS society_name 
+                FROM events e
+                JOIN societies s ON e.society_id = s.id
+                WHERE e.society_id = :society_id 
+                AND e.starts_at < NOW()
+                ORDER BY e.starts_at DESC
+            ";
+
+            $stmt = $db->prepare($query);
+            $stmt->execute(['society_id' => $societyId]);
+            $events = $stmt->fetchAll();
+
+            $response->getBody()->write(json_encode([
+                "status" => "success",
+                "data" => $events
+            ]));
+            return $response->withHeader('Content-Type', 'application/json');
+        } catch (\Exception $e) {
+            $response->getBody()->write(json_encode([
+                "status" => "error",
+                "message" => $e->getMessage()
+            ]));
+            return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
+        }
+    }
+
 }
