@@ -127,6 +127,7 @@ const formatDate = (dateString) => {
 
       <div class="mt-auto pt-6 pb-6 grid grid-cols-2 gap-4">
         <button 
+          @click="router.push({ name: 'SubmitFeedback', params: { id: event.id } })"
           type="button"
           class="flex-1 py-4 text-base sm:text-lg font-bold text-white tracking-widest uppercase bg-gradient-to-r from-blue-600 to-purple-500 dark:from-blue-500 dark:to-purple-500 rounded-2xl shadow-md shadow-purple-500/20 hover:opacity-95 transition-opacity active:scale-[0.99] focus:outline-none"
         >

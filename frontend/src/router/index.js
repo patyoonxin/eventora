@@ -52,6 +52,12 @@ const router = createRouter({
       props: true,
     },
     {
+      path: "/student/events/:id/feedback",
+      name: "SubmitFeedback",
+      component: () => import("@/components/Student/SubmitFeedback.vue"),
+      props: true,
+    },
+    {
       path: "/login",
       name: "Login",
       component: LoginView,

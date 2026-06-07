@@ -812,4 +812,48 @@ class EventController
             return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
         }
     }
+
+    public function getStudentEvent(Request $request, Response $response, array $args): Response
+{
+    $db = \App\Models\Database::connect();
+    $eventId = $args['id'];
+
+    try {
+        // Only return events student is allowed to see (IMPORTANT)
+        $stmt = $db->prepare("
+            SELECT id, title
+            FROM events
+            WHERE id = :id
+        ");
+
+        $stmt->execute([
+            'id' => $eventId
+        ]);
+
+        $event = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+        if (!$event) {
+            $response->getBody()->write(json_encode([
+                "status" => "error",
+                "message" => "Event not found"
+            ]));
+            return $response->withStatus(404)->withHeader('Content-Type', 'application/json');
+        }
+
+        $response->getBody()->write(json_encode([
+            "status" => "success",
+            "data" => $event
+        ]));
+
+        return $response->withHeader('Content-Type', 'application/json');
+
+    } catch (\Exception $e) {
+        $response->getBody()->write(json_encode([
+            "status" => "error",
+            "message" => "Server error"
+        ]));
+
+        return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
+    }
+}
 }

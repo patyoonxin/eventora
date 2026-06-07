@@ -6,6 +6,7 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 use App\Controllers\AuthController;
 use App\Controllers\EventController;
 use App\Middleware\JwtAuthMiddleware;
+use App\Controllers\FeedbackController;
 
 return function (App $app) {
     // Test endpoint to check database connectivity
@@ -35,7 +36,7 @@ return function (App $app) {
 
     // PROTECTED ROUTES (Locked Down behind our JWT Check)
     $app->get('/api/users/past-events', [EventController::class, 'getPastEvents'])
-        ->add(new JwtAuthMiddleware()); // This line locks the route down
+        ->add(new JwtAuthMiddleware());
 
     $app->get('/api/society/upcoming-events', [EventController::class, 'getSocietyUpcomingEvents'])
         ->add(new JwtAuthMiddleware());
@@ -59,5 +60,11 @@ return function (App $app) {
         ->add(new JwtAuthMiddleware());
 
     $app->post('/api/admin/events/{id}/review', [EventController::class, 'reviewEvent'])
+        ->add(new JwtAuthMiddleware());
+
+    $app->get('/api/student/events/{id}', [EventController::class, 'getStudentEvent'])
+    ->add(new JwtAuthMiddleware());
+
+    $app->post('/api/student/feedback', [FeedbackController::class, 'submitFeedback'])
         ->add(new JwtAuthMiddleware());
 };
