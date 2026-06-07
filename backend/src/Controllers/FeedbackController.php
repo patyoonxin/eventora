@@ -92,4 +92,92 @@ class FeedbackController
             return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
         }
     }
+
+    /**
+     * GET /api/society/events/{id}/feedbacks
+     * Fetches individual feedback lines and summaries for a specific society event
+     */
+    public function getEventFeedbacks(Request $request, Response $response, array $args): Response
+    {
+        // 1. Authenticate using your existing token system
+        $tokenData = $request->getAttribute('user');
+        if (!$tokenData) {
+            $response->getBody()->write(json_encode([
+                "status" => "error",
+                "message" => "Access Denied: Missing session parameters."
+            ]));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(401);
+        }
+
+        // Target the id from the path parameters (e.g., /events/{id}/feedbacks)
+        $eventId = $args['id'] ?? null;
+        $userId = $tokenData->id; 
+        $userRole = $tokenData->role; // Pulls the role if you have it, defaults to society
+
+        if ($userRole !== 'organiser') {
+            $response->getBody()->write(json_encode([
+                "status" => "error",
+                "message" => "Forbidden: Student profiles cannot pull dashboard analytics."
+            ]));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+
+        $db = \App\Models\Database::connect();
+
+        try {
+            // 2. Ownership Verification: Ensure this event belongs to the logged-in society user
+            $verifySql = "SELECT e.id, e.title 
+                          FROM events e
+                          JOIN societies s ON e.society_id = s.id
+                          WHERE e.id = :event_id AND s.id = :user_id";
+            
+            $verifyStmt = $db->prepare($verifySql);
+            $verifyStmt->execute([
+                'event_id' => $eventId,
+                'user_id'  => $userId
+            ]);
+            $eventMeta = $verifyStmt->fetch(\PDO::FETCH_ASSOC);
+
+            if (!$eventMeta) {
+                $response->getBody()->write(json_encode([
+                    "status" => "error",
+                    "message" => "Resource not found, or you lack organizational permission bounds."
+                ]));
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(404);
+            }
+
+            // 3. Fetch collective feedback submissions grouped with student names
+            $feedbackSql = "SELECT 
+                                f.id,
+                                f.rating,
+                                f.comment,
+                                f.created_at,
+                                u.name AS student_name
+                            FROM feedbacks f
+                            JOIN users u ON f.user_id = u.id
+                            WHERE f.event_id = :event_id
+                            ORDER BY f.created_at DESC";
+
+            $feedbackStmt = $db->prepare($feedbackSql);
+            $feedbackStmt->execute(['event_id' => $eventId]);
+            $feedbacks = $feedbackStmt->fetchAll(\PDO::FETCH_ASSOC);
+
+            // 4. Write perfectly formatted payload into your stream structure
+            $response->getBody()->write(json_encode([
+                "status" => "success",
+                "data" => [
+                    "event_title" => $eventMeta['title'],
+                    "feedbacks"   => $feedbacks
+                ]
+            ]));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+
+        } catch (\PDOException $e) {
+            $response->getBody()->write(json_encode([
+                "status" => "error",
+                "message" => "Internal Database processing exception occurred."
+            ]));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+        }
+    }
 }

@@ -106,6 +106,12 @@ const router = createRouter({
       props: true,
     },
     {
+      path: "/society/past-events/:id/feedback",
+      name: "SocietyEventFeedback",
+      component: () => import("@/components/Society/SocietyEventFeedbackView.vue"),
+      props: true,
+    },
+    {
       path: "/society/analytics",
       name: "S_Analytics",
       component: S_Analytics,

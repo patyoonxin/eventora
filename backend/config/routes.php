@@ -55,6 +55,9 @@ return function (App $app) {
 
     $app->get('/api/society/past-events', [EventController::class, 'getSocietyPastEvents'])
         ->add(new JwtAuthMiddleware());
+    
+    $app->get('/api/society/events/{id}/feedbacks', [FeedbackController::class, 'getEventFeedbacks'])
+        ->add(new JwtAuthMiddleware());
 
     $app->get('/api/admin/pending-events', [EventController::class, 'getPendingEvents'])
         ->add(new JwtAuthMiddleware());
