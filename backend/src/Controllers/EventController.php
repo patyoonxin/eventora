@@ -908,4 +908,94 @@ class EventController
         }
     }
 
+    // GET /api/events/{id}/attendance/export
+    public function exportAttendance(Request $request, Response $response, array $args): Response 
+    {
+        try {
+            $db = \App\Models\Database::connect();
+            $eventId = $args['id'];
+
+            // 1. Extract user details injected by your working JwtAuthMiddleware
+            $user = $request->getAttribute('user');
+            $userId = $user->id; // The logged-in organiser's User ID
+
+            // 2. Dynamic Security Check: Find the Society ID managed by this advisor/organiser
+            $societyQuery = "SELECT id FROM societies WHERE advisor_id = :user_id LIMIT 1";
+            $socStmt = $db->prepare($societyQuery);
+            $socStmt->execute(['user_id' => $userId]);
+            $society = $socStmt->fetch();
+
+            if (!$society) {
+                $response->getBody()->write(json_encode([
+                    "status" => "error",
+                    "message" => "Unauthorized: You are not assigned as an advisor to any active society."
+                ]));
+                return $response->withStatus(403)->withHeader('Content-Type', 'application/json');
+            }
+
+            $societyId = $society['id'];
+
+            // 3. Verify that this specific event actually belongs to this organiser's society
+            $eventVerifyQuery = "SELECT id FROM events WHERE id = :event_id AND society_id = :society_id LIMIT 1";
+            $evStmt = $db->prepare($eventVerifyQuery);
+            $evStmt->execute([
+                'event_id' => $eventId,
+                'society_id' => $societyId
+            ]);
+            $eventExists = $evStmt->fetch();
+
+            if (!$eventExists) {
+                $response->getBody()->write(json_encode([
+                    "status" => "error",
+                    "message" => "Unauthorized: You do not have permission to export records for this event."
+                ]));
+                return $response->withStatus(403)->withHeader('Content-Type', 'application/json');
+            }
+
+            // 4. Fetch attendance data using prepared statements to prevent SQL Injection
+            // (Note: Table names converted to standard lowercase plural format to match your structure)
+            $sql = "SELECT u.name, u.email, c.checked_in_at 
+                    FROM check_ins c
+                    JOIN tickets t ON c.ticket_id = t.id
+                    JOIN users u ON t.user_id = u.id
+                    WHERE t.event_id = :event_id 
+                    ORDER BY c.checked_in_at DESC";
+                    
+            $stmt = $db->prepare($sql);
+            $stmt->execute(['event_id' => $eventId]);
+            
+            // fetchAll() uses default fetch mode established in your static Database connection class
+            $attendanceRecords = $stmt->fetchAll(\PDO::FETCH_ASSOC); 
+
+            // 5. Build the CSV structure in memory
+            $stream = fopen('php://temp', 'r+');
+            
+            // Add CSV Header Row
+            fputcsv($stream, ['Full Name', 'Email Address', 'Checked-In Time']);
+            
+            // Add Data Rows
+            foreach ($attendanceRecords as $record) {
+                fputcsv($stream, $record);
+            }
+            
+            rewind($stream);
+            $csvContent = stream_get_contents($stream);
+            fclose($stream);
+
+            // 6. Return the CSV response with appropriate HTTP headers
+            $response->getBody()->write($csvContent);
+            return $response
+                ->withHeader('Content-Type', 'text/csv')
+                ->withHeader('Content-Disposition', 'attachment; filename="event_' . $eventId . '_attendance.csv"')
+                ->withStatus(200);
+
+        } catch (\Exception $e) {
+            $response->getBody()->write(json_encode([
+                "status" => "error",
+                "message" => $e->getMessage()
+            ]));
+            return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
+        }
+    }
+
 }

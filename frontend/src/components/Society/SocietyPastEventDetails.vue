@@ -2,6 +2,9 @@
 import { ref, onMounted, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth"; 
+import axios from "axios";
+//import { Capacitor } from '@capacitor/core';
+//import { Filesystem, Directory } from '@capacitor/filesystem';
 
 const route = useRoute();
 const router = useRouter();
@@ -78,11 +81,68 @@ const handleViewFeedback = () => {
 };
 
 // 3. UPDATED: Changed Cancel method into an attendance report downloader
+const isExporting = ref(false);
+
+// Helper function to convert Blob to Base64 (Required by Capacitor Filesystem)
+const blobToBase64 = (blob) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = reject;
+    reader.onload = () => resolve(reader.result);
+    reader.readAsDataURL(blob);
+  });
+};
+
 const handleExportAttendance = async () => {
+  if (isExporting.value) return;
+  isExporting.value = true;
+
   try {
-    window.open(`${API_BASE}/api/society/events/${eventId}/export-attendance`, '_blank');
-  } catch (err) {
-    alert("Could not process attendance export file download.");
+    const response = await axios.get(
+      `${API_BASE}/api/society/events/${eventId}/attendance/export`,
+      {
+        headers: {
+          Authorization: `Bearer ${authStore.token}`,
+        },
+        responseType: "blob",
+      }
+    );
+    const filename = `event_${eventId}_attendance.csv`;
+
+    // --- STRATEGY SPLIT BASED ON PLATFORM ---
+    //if (Capacitor.isNativePlatform()) {
+      // 1. ANDROID / NATIVE LOGIC
+    //  const base64Data = await blobToBase64(response.data);
+      
+      // Clean the base64 string (remove the "data:text/csv;base64," prefix)
+    //   const pureBase64 = base64Data.split(',')[1];
+
+    //   const result = await Filesystem.writeFile({
+    //     path: filename,
+    //     data: pureBase64,
+    //     directory: Directory.External, // Saves to device Documents folder
+    //   });
+
+        // console.log(result.uri);
+    // } else {
+      // 2. STANDARD WEB BROWSER LOGIC
+      const url = window.URL.createObjectURL(new Blob([response.data], { type: 'text/csv' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      
+      document.body.appendChild(link);
+      link.click();
+      
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    //}
+
+  } catch (error) {
+    console.error("Export failed:", error);
+    alert("Could not export the attendance report.");
+  } finally {
+    isExporting.value = false;
   }
 };
 </script>
