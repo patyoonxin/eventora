@@ -28,6 +28,11 @@ const router = createRouter({
       meta: { role: "student" },
     },
     {
+      path: "/notifications",
+      name: "Notifications",
+      component: () => import("@/components/NotificationsView.vue"),
+    },
+    {
       path: "/events/:id",
       name: "EventDetails",
       component: () => import("@/components/Student/EventDetails.vue"),

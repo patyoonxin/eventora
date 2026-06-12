@@ -6,10 +6,6 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 
 class FeedbackController
 {
-    /**
-     * POST /api/student/feedback
-     * Submits a student's feedback/rating for a specific event
-     */
     public function submitFeedback(Request $request, Response $response): Response
     {
         // 1. Guard Check: Ensure the user is authenticated from the JWT attribute middleware

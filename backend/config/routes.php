@@ -1,12 +1,14 @@
 <?php
 
 use Slim\App;
+use Slim\Routing\RouteCollectorProxy;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use App\Controllers\AuthController;
 use App\Controllers\EventController;
 use App\Middleware\JwtAuthMiddleware;
 use App\Controllers\FeedbackController;
+use App\Controllers\NotificationController;
 
 return function (App $app) {
     // Test endpoint to check database connectivity
@@ -44,7 +46,7 @@ return function (App $app) {
     $app->get('/api/society/events/{id}', [EventController::class, 'getEvent'])
         ->add(new JwtAuthMiddleware());
 
-    $app->post('/api/society/events/{id}/update',[EventController::class, 'update'])
+    $app->post('/api/society/events/{id}/update', [EventController::class, 'update'])
         ->add(new JwtAuthMiddleware());
 
     $app->post('/api/society/events/add', [EventController::class, 'add'])
@@ -55,7 +57,7 @@ return function (App $app) {
 
     $app->get('/api/society/past-events', [EventController::class, 'getSocietyPastEvents'])
         ->add(new JwtAuthMiddleware());
-    
+
     $app->get('/api/society/events/{id}/feedbacks', [FeedbackController::class, 'getEventFeedbacks'])
         ->add(new JwtAuthMiddleware());
 
@@ -72,8 +74,14 @@ return function (App $app) {
         ->add(new JwtAuthMiddleware());
 
     $app->get('/api/student/events/{id}', [EventController::class, 'getStudentEvent'])
-    ->add(new JwtAuthMiddleware());
+        ->add(new JwtAuthMiddleware());
 
     $app->post('/api/student/feedback', [FeedbackController::class, 'submitFeedback'])
         ->add(new JwtAuthMiddleware());
+
+    $app->group('/api/notifications', function (RouteCollectorProxy $group) {
+        // These paths are relative to the group prefix
+        $group->get('', [NotificationController::class, 'getNotifications']);
+        $group->put('/{id}/read', [NotificationController::class, 'markAsRead']);
+    })->add(new JwtAuthMiddleware()); // This protects ALL routes inside this group!
 };
