@@ -63,6 +63,12 @@ return function (App $app) {
 
     $app->get('/api/society/events/{id}/attendance/export', [EventController::class, 'exportAttendance'])
         ->add(new JwtAuthMiddleware());
+    
+    $app->get('/api/society/events/{id}/participants', [EventController::class, 'getEventParticipants'])
+        ->add(new JwtAuthMiddleware());
+
+    $app->post('/api/society/events/{id}/send-reminders', [NotificationController::class, 'sendReminders'])
+        ->add(new JwtAuthMiddleware());
 
     $app->get('/api/admin/pending-events', [EventController::class, 'getPendingEvents'])
         ->add(new JwtAuthMiddleware());
@@ -83,5 +89,6 @@ return function (App $app) {
         // These paths are relative to the group prefix
         $group->get('', [NotificationController::class, 'getNotifications']);
         $group->put('/{id}/read', [NotificationController::class, 'markAsRead']);
-    })->add(new JwtAuthMiddleware()); // This protects ALL routes inside this group!
+    })->add(new JwtAuthMiddleware()); 
+
 };

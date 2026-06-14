@@ -909,7 +909,7 @@ class EventController
     }
 
     // GET /api/events/{id}/attendance/export
-    public function exportAttendance(Request $request, Response $response, array $args): Response 
+    public function exportAttendance(Request $request, Response $response, array $args): Response
     {
         try {
             $db = \App\Models\Database::connect();
@@ -960,24 +960,24 @@ class EventController
                     JOIN users u ON t.user_id = u.id
                     WHERE t.event_id = :event_id 
                     ORDER BY c.checked_in_at DESC";
-                    
+
             $stmt = $db->prepare($sql);
             $stmt->execute(['event_id' => $eventId]);
-            
+
             // fetchAll() uses default fetch mode established in your static Database connection class
-            $attendanceRecords = $stmt->fetchAll(\PDO::FETCH_ASSOC); 
+            $attendanceRecords = $stmt->fetchAll(\PDO::FETCH_ASSOC);
 
             // 5. Build the CSV structure in memory
             $stream = fopen('php://temp', 'r+');
-            
+
             // Add CSV Header Row
             fputcsv($stream, ['Full Name', 'Email Address', 'Checked-In Time']);
-            
+
             // Add Data Rows
             foreach ($attendanceRecords as $record) {
                 fputcsv($stream, $record);
             }
-            
+
             rewind($stream);
             $csvContent = stream_get_contents($stream);
             fclose($stream);
@@ -988,7 +988,6 @@ class EventController
                 ->withHeader('Content-Type', 'text/csv')
                 ->withHeader('Content-Disposition', 'attachment; filename="event_' . $eventId . '_attendance.csv"')
                 ->withStatus(200);
-
         } catch (\Exception $e) {
             $response->getBody()->write(json_encode([
                 "status" => "error",
@@ -997,5 +996,42 @@ class EventController
             return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
         }
     }
+    public function getEventParticipants(Request $request, Response $response, array $args): Response
+    {
+        try {
+            $db = \App\Models\Database::connect();
+            $eventId = $args['id'];
 
+            $query = "
+                SELECT 
+                    t.id AS ticket_id,
+                    t.status AS ticket_status,
+                    t.issued_at,
+                    u.id AS user_id,
+                    u.name AS user_name,
+                    u.email AS user_email
+                FROM tickets t
+                JOIN users u ON t.user_id = u.id
+                WHERE t.event_id = :event_id
+                ORDER BY t.issued_at DESC
+            ";
+
+            $stmt = $db->prepare($query);
+            $stmt->execute(['event_id' => $eventId]);
+            $participants = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+            // 5. Send JSON Response back
+            $response->getBody()->write(json_encode([
+                "status" => "success",
+                "data" => $participants
+            ]));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+        } catch (\Exception $e) {
+            $response->getBody()->write(json_encode([
+                "status" => "error",
+                "message" => $e->getMessage()
+            ]));
+            return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
+        }
+    }
 }

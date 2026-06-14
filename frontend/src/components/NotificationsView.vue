@@ -21,7 +21,7 @@
         v-for="item in store.notifications" 
         :key="item.id" 
         :class="[
-          'p-4 rounded-xl border border-[var(--border)] bg-[var(--bg)] shadow-sm transition-all duration-200 cursor-pointer hover:translate-y-[-2px] hover:shadow-md',
+          'p-4 rounded-xl border border-[var(--border)] bg-[var(--bg)] shadow-sm transition-all duration-200 cursor-pointer hover:translate-y-[-2px] hover:shadow-md text-left',
           { 'bg-[var(--accent-bg)] border-l-4 border-l-[var(--accent)]': !item.is_read }
         ]"
         @click="handleNotificationClick(item)"

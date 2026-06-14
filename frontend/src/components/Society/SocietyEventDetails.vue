@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { useAuthStore } from "@/stores/auth"; 
+import { useAuthStore } from "@/stores/auth";
 
 const route = useRoute();
 const router = useRouter();
@@ -17,15 +17,12 @@ const errorMessage = ref("");
 onMounted(async () => {
   try {
     // Fetch society events from your dynamic backend endpoint
-    const response = await fetch(
-      `${API_BASE}/api/society/upcoming-events`,
-      {
-        headers: {
-          "Authorization": `Bearer ${authStore.token}`,
-          "Accept": "application/json",
-        },
+    const response = await fetch(`${API_BASE}/api/society/upcoming-events`, {
+      headers: {
+        Authorization: `Bearer ${authStore.token}`,
+        Accept: "application/json",
       },
-    );
+    });
     const json = await response.json();
 
     if (json.status === "success") {
@@ -85,17 +82,17 @@ const handleEditDetails = () => {
 };
 
 const handleCancelEvent = async () => {
-  if (!confirm('Are you sure to cancel this event?')) return;
+  if (!confirm("Are you sure to cancel this event?")) return;
 
   const response = await fetch(
     `${API_BASE}/api/society/events/${eventId}/cancel`,
     {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${authStore.token}`,
-        "Content-Type": "application/json"
-      }
-    }
+        Authorization: `Bearer ${authStore.token}`,
+        "Content-Type": "application/json",
+      },
+    },
   );
 
   const json = await response.json();
@@ -211,7 +208,7 @@ const handleCancelEvent = async () => {
         <div class="text-sm text-gray-400 dark:text-gray-500 font-medium">
           Status:
           <span class="font-bold text-gray-600 dark:text-gray-300 capitalize">{{
-            event.status 
+            event.status
           }}</span>
         </div>
         <div>
@@ -232,14 +229,16 @@ const handleCancelEvent = async () => {
         <div
           class="flex items-center justify-center gap-2 px-5 py-4 bg-purple-100 dark:bg-purple-950/60 rounded-2xl min-w-[110px] sm:min-w-[130px]"
         >
-          <span
-            class="text-base text-gray-700 dark:text-gray-300 pi pi-users"
-          ></span>
-          <span
-            class="text-base sm:text-lg font-bold text-gray-800 dark:text-gray-200"
-          >
-            31/{{ event.capacity || 100 }}
-          </span>
+          <router-link :to="`/society/events/${eventId}/participants`">
+            <span
+              class="text-base text-gray-700 dark:text-gray-300 pi pi-users"
+            ></span>
+            <span
+              class="text-base sm:text-lg font-bold text-gray-800 dark:text-gray-200"
+            >
+              31/{{ event.capacity }}
+            </span>
+          </router-link>
         </div>
 
         <button

@@ -81,6 +81,12 @@ const router = createRouter({
       props: true,
     },
     {
+      path: '/society/events/:id/participants',
+      name: 'EventParticipants',
+      component: () => import('@/components/Society/EventParticipantsView.vue'),
+      props: true
+    },
+    {
       path: "/society/events/:id/edit",
       name: "SocietyEventEdit",
       component: () => import("@/components/Society/SocietyEventEdit.vue"),
