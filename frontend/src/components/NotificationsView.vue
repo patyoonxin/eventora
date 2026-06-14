@@ -42,11 +42,11 @@
 
 <script setup>
 import { onMounted } from 'vue';
-import { useRouter } from 'vue-router'; // <-- Added this
+import { useRouter } from 'vue-router'; 
 import { useNotificationStore } from '@/stores/notificationStore';
 
 const store = useNotificationStore();
-const router = useRouter(); // <-- Added this
+const router = useRouter();
 
 onMounted(() => {
   store.fetchNotifications();
@@ -55,6 +55,13 @@ onMounted(() => {
 const handleNotificationClick = (item) => {
   if (!item.is_read) {
     store.markAsRead(item.id);
+  }
+
+  if (item.type === 'recommendation') {
+    // You can route them to your general public event listing page
+    router.push({ name: 'Home' }); 
+    
+    // OR if you want to be fancy, parse an event ID if you choose to save an event_id column in notifications table
   }
 };
 </script>

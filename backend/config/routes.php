@@ -92,4 +92,7 @@ return function (App $app) {
         $group->put('/{id}/read', [NotificationController::class, 'markAsRead']);
     })->add(new JwtAuthMiddleware()); 
 
+    $app->post('/api/notifications/generate-recommendations', [NotificationController::class, 'generateRecommendations'])
+        ->add(new JwtAuthMiddleware());
+
 };

@@ -1073,4 +1073,6 @@ class EventController
                 ->withStatus(500);
         }
     }
+
+
 }

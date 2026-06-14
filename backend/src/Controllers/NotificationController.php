@@ -108,4 +108,118 @@ class NotificationController
         ]));
         return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
     }
+
+    public function generateRecommendations(Request $request, Response $response)
+    {
+        $tokenData = $request->getAttribute('user');
+
+        if (!$tokenData || !isset($tokenData->id)) {
+            $response->getBody()->write(json_encode([
+                "message" => "Unauthorized"
+            ]));
+            return $response->withStatus(401)
+                ->withHeader('Content-Type', 'application/json');
+        }
+
+        $userId = $tokenData->id;
+
+        $db = \App\Models\Database::connect();
+
+        // 1. Get last attended event (based on valid check-in)
+        $lastEventQuery = "
+        SELECT e.id, e.society_id
+        FROM check_ins c
+        JOIN tickets t ON c.ticket_id = t.id
+        JOIN events e ON t.event_id = e.id
+        WHERE t.user_id = :user_id
+        ORDER BY c.checked_in_at DESC
+        LIMIT 1
+    ";
+
+        $stmt = $db->prepare($lastEventQuery);
+        $stmt->execute(['user_id' => $userId]);
+        $lastEvent = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        // 2. Build optional society filter
+        $societyFilter = $lastEvent ? "AND e.society_id = :society_id" : "";
+
+        // 3. Find recommended event
+        $recommendQuery = "
+        SELECT e.id, e.title, s.name AS society_name
+        FROM events e
+        JOIN societies s ON e.society_id = s.id
+        WHERE e.status = 'approved'
+          AND e.starts_at > NOW()
+          {$societyFilter}
+          AND e.id NOT IN (
+              SELECT event_id FROM tickets WHERE user_id = :user_id
+          )
+        ORDER BY e.starts_at ASC
+        LIMIT 1
+    ";
+
+        $stmt = $db->prepare($recommendQuery);
+
+        $params = [
+            'user_id' => $userId
+        ];
+
+        if ($lastEvent) {
+            $params['society_id'] = $lastEvent['society_id'];
+        }
+
+        $stmt->execute($params);
+        $recommendedEvent = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        // 4. No recommendation case
+        if (!$recommendedEvent) {
+            $response->getBody()->write(json_encode([
+                'status' => 'success',
+                'message' => 'No new recommendations available at this time.'
+            ]));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+        }
+
+        // 5. Prevent duplicate notifications
+        $checkNotif = $db->prepare("
+        SELECT id FROM notifications 
+        WHERE user_id = :user_id 
+        AND type = 'recommendation'
+        AND message LIKE :match
+    ");
+
+        $checkNotif->execute([
+            'user_id' => $userId,
+            'match' => "%{$recommendedEvent['title']}%"
+        ]);
+
+        if ($checkNotif->fetch()) {
+            $response->getBody()->write(json_encode([
+                'status' => 'success',
+                'message' => 'Recommendation already sent previously.'
+            ]));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+        }
+
+        // 6. Insert notification
+        $insertNotif = $db->prepare("
+        INSERT INTO notifications (user_id, title, message, type)
+        VALUES (:user_id, :title, :message, 'recommendation')
+    ");
+
+        $insertNotif->execute([
+            'user_id' => $userId,
+            'title' => 'Recommended For You ✨',
+            'message' => "Based on your past attendance, we think you'd love '{$recommendedEvent['title']}' hosted by {$recommendedEvent['society_name']}!"
+        ]);
+
+        $response->getBody()->write(json_encode([
+            'status' => 'success',
+            'message' => 'Recommendation notification generated!'
+        ]));
+
+        return $response
+            ->withHeader('Content-Type', 'application/json')
+            ->withStatus(201);
+    }
 }
