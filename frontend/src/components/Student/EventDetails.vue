@@ -11,6 +11,7 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL
 const event = ref(null)
 const isLoading = ref(true)
 const errorMessage = ref('')
+const registeredCount = ref(0);
 
 // Temporary mocked registrant count since backend registration isn't built yet
 const currentRegistrants = ref(30) 
@@ -25,7 +26,8 @@ onMounted(async () => {
       // Find the specific event in our dataset that matches the route ID
       const foundEvent = json.data.find(e => e.id == eventId)
       if (foundEvent) {
-        event.value = foundEvent
+        event.value = foundEvent;
+        await fetchCount();
       } else {
         throw new Error('Event not found')
       }
@@ -39,6 +41,29 @@ onMounted(async () => {
     isLoading.value = false
   }
 })
+
+const fetchCount = async () => {
+  try {
+    const res = await fetch(
+      `${API_BASE}/api/events/${eventId}/participants/count`,
+      {
+        headers: {
+          Accept: "application/json",
+        },
+      }
+    );
+
+    const json = await res.json();
+
+    if (json.status === "success") {
+      registeredCount.value = json.data;
+    } else {
+      console.error("API error:", json.message);
+    }
+  } catch (err) {
+    console.error("Fetch count failed:", err);
+  }
+};
 
 // Splitting comma-separated tags into individual elements
 const tagsArray = computed(() => {
@@ -136,7 +161,7 @@ const handleRegisterClick = () => {
         <div class="flex items-center justify-center gap-1.5 px-5 py-4 bg-purple-100 dark:bg-purple-950/60 rounded-2xl min-w-[110px] sm:min-w-[130px]">
           <span class="pi pi-users text-lg text-gray-700 dark:text-gray-300"></span>
           <span class="text-xl sm:text-xl font-semibold text-gray-800 dark:text-gray-200">
-            {{ currentRegistrants }}/{{ event.capacity || 50 }}
+            {{ registeredCount }}/{{ event.capacity || 50 }}
           </span>
         </div>
 

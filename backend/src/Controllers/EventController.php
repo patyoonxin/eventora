@@ -1034,4 +1034,43 @@ class EventController
             return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
         }
     }
+
+    public function getParticipantCount(Request $request, Response $response, array $args): Response
+    {
+        try {
+            $db = \App\Models\Database::connect();
+            $eventId = $args['id'];
+
+            $query = "
+            SELECT COUNT(*) AS total
+            FROM tickets t
+            JOIN users u ON t.user_id = u.id
+            WHERE t.event_id = :event_id
+        ";
+
+            $stmt = $db->prepare($query);
+            $stmt->execute(['event_id' => $eventId]);
+
+            $result = $stmt->fetch(\PDO::FETCH_ASSOC);
+            $count = $result['total'] ?? 0;
+
+            $response->getBody()->write(json_encode([
+                "status" => "success",
+                "data" => (int)$count
+            ]));
+
+            return $response
+                ->withHeader('Content-Type', 'application/json')
+                ->withStatus(200);
+        } catch (\Exception $e) {
+            $response->getBody()->write(json_encode([
+                "status" => "error",
+                "message" => $e->getMessage()
+            ]));
+
+            return $response
+                ->withHeader('Content-Type', 'application/json')
+                ->withStatus(500);
+        }
+    }
 }

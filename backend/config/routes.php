@@ -35,6 +35,7 @@ return function (App $app) {
     $app->post('/api/register', [AuthController::class, 'register']);
     $app->post('/api/login', [AuthController::class, 'login']);
     $app->get('/api/events', [EventController::class, 'index']);
+    $app->get('/api/events/{id}/participants/count', [EventController::class, 'getParticipantCount']);
 
     // PROTECTED ROUTES (Locked Down behind our JWT Check)
     $app->get('/api/users/past-events', [EventController::class, 'getPastEvents'])

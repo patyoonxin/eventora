@@ -13,6 +13,7 @@ const authStore = useAuthStore();
 const event = ref(null);
 const isLoading = ref(true);
 const errorMessage = ref("");
+const participants = ref([]);
 
 onMounted(async () => {
   try {
@@ -29,6 +30,8 @@ onMounted(async () => {
       const foundEvent = json.data.find((e) => e.id == eventId);
       if (foundEvent) {
         event.value = foundEvent;
+
+        await fetchParticipants();
       } else {
         throw new Error("Event could not be found in your society inventory.");
       }
@@ -41,6 +44,32 @@ onMounted(async () => {
     isLoading.value = false;
   }
 });
+
+const fetchParticipants = async () => {
+  try {
+    const response = await fetch(
+      `${API_BASE}/api/society/events/${eventId}/participants`,
+      {
+        headers: {
+          Authorization: `Bearer ${authStore.token}`,
+          Accept: "application/json",
+        },
+      }
+    );
+
+    const json = await response.json();
+
+    if (json.status === "success") {
+      participants.value = json.data;
+    } else {
+      throw new Error(json.message);
+    }
+  } catch (err) {
+    console.error(err);
+  }
+};
+
+const registeredCount = computed(() => participants.value.length);
 
 // Formatting Helpers
 const tagsArray = computed(() => {
@@ -236,7 +265,7 @@ const handleCancelEvent = async () => {
             <span
               class="text-base sm:text-lg font-bold text-gray-800 dark:text-gray-200"
             >
-              31/{{ event.capacity }}
+              {{ registeredCount }}/{{ event.capacity }}
             </span>
           </router-link>
         </div>
