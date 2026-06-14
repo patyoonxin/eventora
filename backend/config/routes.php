@@ -41,6 +41,9 @@ return function (App $app) {
     $app->get('/api/users/past-events', [EventController::class, 'getPastEvents'])
         ->add(new JwtAuthMiddleware());
 
+    $app->get('/api/users/past-events/{event_id}/certificate', [EventController::class, 'generateCertificate'])
+        ->add(new JwtAuthMiddleware());
+
     $app->get('/api/society/upcoming-events', [EventController::class, 'getSocietyUpcomingEvents'])
         ->add(new JwtAuthMiddleware());
 

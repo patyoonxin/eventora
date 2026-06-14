@@ -1,17 +1,20 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useAuthStore } from "@/stores/auth"; 
+import { useAuthStore } from "@/stores/auth"
+//import { Capacitor } from '@capacitor/core'
+//import { Browser } from '@capacitor/browser'
 
 const route = useRoute()
 const router = useRouter()
 const eventId = route.params.id
 const API_BASE = import.meta.env.VITE_API_BASE_URL
-const authStore = useAuthStore();
+const authStore = useAuthStore()
 
 // Component States
 const event = ref(null)
 const isLoading = ref(true)
+const isDownloadingCert = ref(false) // Tracking certificate generation processing state
 const errorMessage = ref('')
 
 onMounted(async () => {
@@ -40,6 +43,58 @@ onMounted(async () => {
     isLoading.value = false
   }
 })
+
+// Certificate Downloader Handler
+const handleDownloadCertificate = async () => {
+  if (isDownloadingCert.value) return
+  isDownloadingCert.value = true
+
+  try {
+    const targetUrl = `${API_BASE}/api/users/past-events/${eventId}/certificate`
+
+    // Case 1: Running on native Android/iOS via Capacitor
+    //if (Capacitor.isNativePlatform()) {
+      // Pass the token inside a query parameter so the external mobile system browser can pass backend auth check
+      //await Browser.open({ 
+        //url: `${targetUrl}?token=${authStore.token}` 
+      //})
+    //} 
+    // Case 2: Running on a desktop/mobile standard browser
+    //else {
+      const response = await fetch(targetUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${authStore.token}`
+        }
+      })
+
+      if (!response.ok) {
+        // If it fails, fallback to JSON error parse safely
+        const errorJson = await response.json()
+        throw new Error(errorJson.message || 'Unable to retrieve your certificate.')
+      }
+
+      // Read raw binary from Slim 4 Stream as a blob object
+      const blob = await response.blob()
+      const blobUrl = window.URL.createObjectURL(blob)
+
+      // Ephemeral virtual anchor DOM layout node creation
+      const downloadLink = document.createElement('a')
+      downloadLink.href = blobUrl
+      downloadLink.setAttribute('download', `Certificate_${event.value.title.replace(/\s+/g, '_')}.pdf`)
+      document.body.appendChild(downloadLink)
+      downloadLink.click()
+
+      // Garbage collection memory scrubbing
+      document.body.removeChild(downloadLink)
+      window.URL.revokeObjectURL(blobUrl)
+    //}
+  } catch (err) {
+    alert(err.message || 'An error occurred during certificate download processing.')
+  } finally {
+    isDownloadingCert.value = false
+  }
+}
 
 // UI Helpers (Same as eventDetails)
 const tagsArray = computed(() => {
@@ -110,9 +165,9 @@ const formatDate = (dateString) => {
         <div class="text-gray-400 dark:text-gray-500 text-xs sm:text-sm font-semibold pt-2 uppercase tracking-widest">
           <span>RM{{ parseFloat(event.price).toFixed(2) }}</span>
           <span class="mx-2">|</span>
-          <span>{{ formatDate(event.starts_at) }}</span>
+          <span class="{{ event.venue ? '' : 'hidden' }}">{{ event.venue }}</span>
           <span class="mx-2">|</span>
-          <span>{{ event.venue }}</span>
+          <span>{{ formatDate(event.starts_at) }}</span>
         </div>
       </div>
 
@@ -135,10 +190,13 @@ const formatDate = (dateString) => {
         </button>
 
         <button 
+          @click="handleDownloadCertificate"
           type="button"
-          class="flex-1 py-4 text-base sm:text-lg font-bold text-white tracking-widest uppercase bg-gradient-to-r from-blue-600 to-purple-500 dark:from-blue-500 dark:to-purple-500 rounded-2xl shadow-md shadow-purple-500/20 hover:opacity-95 transition-opacity active:scale-[0.99] focus:outline-none"
+          :disabled="isDownloadingCert"
+          class="flex-1 py-4 text-base sm:text-lg font-bold text-white tracking-widest uppercase bg-gradient-to-r from-blue-600 to-purple-500 dark:from-blue-500 dark:to-purple-500 rounded-2xl shadow-md shadow-purple-500/20 hover:opacity-95 transition-opacity active:scale-[0.99] focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Digital Cert
+          <span v-if="isDownloadingCert">Generating...</span>
+          <span v-else>Digital Cert</span>
         </button>
       </div>
 

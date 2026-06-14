@@ -1074,5 +1074,108 @@ class EventController
         }
     }
 
+    public function generateCertificate(Request $request, Response $response, array $args): Response
+    {
+        try {
+            $db = \App\Models\Database::connect();
 
+            // READ THE DYNAMIC DATA LOADED FROM THE JWT MIDDLEWARE 
+            $user = $request->getAttribute('user');
+            $userId = $user->id; 
+            
+            // Grab the specific event ID from the route arguments
+            $eventId = $args['event_id'];
+
+            // Securely verify attendance using prepared statements
+            $query = "
+                SELECT u.name AS student_name, e.title AS event_title, e.ends_at, LPAD(t.id, 5, '0') AS ticket_number
+                FROM tickets t
+                JOIN users u ON t.user_id = u.id
+                JOIN events e ON t.event_id = e.id
+                WHERE t.user_id = :user_id 
+                AND t.event_id = :event_id
+                AND t.status = 'used'
+            ";
+
+            $stmt = $db->prepare($query);
+            $stmt->execute([
+                'user_id' => $userId,
+                'event_id' => $eventId
+            ]);
+            $attendance = $stmt->fetch(\PDO::FETCH_OBJ); // Fetching as an object to match your payload style
+
+            // Guard Clause: If no record is found or they didn't attend, return 403 Forbidden
+            if (!$attendance) {
+                $response->getBody()->write(json_encode([
+                    "status" => "error",
+                    "message" => "Access denied. You either did not attend this event or do not hold a valid ticket."
+                ]));
+                return $response->withStatus(403)->withHeader('Content-Type', 'application/json');
+            }
+
+            // --- PDF GENERATION WITH FPDF ---
+            // 'L' sets Landscape mode (A4 width is 297mm, height is 210mm)
+            $pdf = new \FPDF('L', 'mm', 'A4');
+            $pdf->AddPage();
+            
+            // Simple Elegant Certificate Layout 
+            // Outer Border
+            $pdf->SetLineWidth(1);
+            $pdf->Rect(10, 10, 277, 190); 
+            // Inner Border
+            $pdf->SetLineWidth(0.5);
+            $pdf->Rect(13, 13, 271, 184);
+
+            // Header Title
+            $pdf->SetFont('Arial', 'B', 30);
+            $pdf->Ln(25);
+            $pdf->Cell(0, 15, 'CERTIFICATE OF ATTENDANCE', 0, 1, 'C');
+            
+            // Subtitle
+            $pdf->SetFont('Arial', '', 16);
+            $pdf->Ln(10);
+            $pdf->Cell(0, 10, 'This is proudly presented to', 0, 1, 'C');
+            
+            // Student Name
+            $pdf->SetFont('Arial', 'B', 24);
+            $pdf->Ln(5);
+            $pdf->Cell(0, 15, strtoupper($attendance->student_name), 0, 1, 'C');
+            
+            // Description Context
+            $pdf->SetFont('Arial', '', 16);
+            $pdf->Ln(5);
+            $pdf->Cell(0, 10, 'for actively participating in the society event:', 0, 1, 'C');
+            
+            // Event Title
+            $pdf->SetFont('Arial', 'I', 20);
+            $pdf->Ln(5);
+            $pdf->Cell(0, 12, '"' . $attendance->event_title . '"', 0, 1, 'C');
+            
+            // Footer Data (Date and ID validation)
+            $pdf->SetFont('Arial', '', 12);
+            $pdf->Ln(20);
+            $formattedDate = date('d F Y', strtotime($attendance->ends_at));
+            $pdf->Cell(0, 10, 'Date Verified: ' . $formattedDate, 0, 1, 'C');
+            
+            $pdf->SetFont('Arial', 'I', 10);
+            $pdf->Cell(0, 10, 'Verification ID: ' . $attendance->ticket_number, 0, 1, 'C');
+
+            // Stream PDF output cleanly via Slim 4 Response object
+            $stream = fopen('php://memory', 'w+');
+            fwrite($stream, $pdf->Output('S'));
+            rewind($stream);
+
+            return $response
+                ->withHeader('Content-Type', 'application/pdf')
+                ->withHeader('Content-Disposition', 'attachment; filename="Certificate_' . $eventId . '.pdf"')
+                ->withBody(new \Slim\Psr7\Stream($stream));
+
+        } catch (\Exception $e) {
+            $response->getBody()->write(json_encode([
+                "status" => "error",
+                "message" => "Failed to generate certificate: " . $e->getMessage()
+            ]));
+            return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
+        }
+    }
 }
