@@ -9,6 +9,7 @@ use App\Controllers\EventController;
 use App\Middleware\JwtAuthMiddleware;
 use App\Controllers\FeedbackController;
 use App\Controllers\NotificationController;
+use App\Controllers\AnalyticsController;
 
 return function (App $app) {
     // Test endpoint to check database connectivity
@@ -72,6 +73,9 @@ return function (App $app) {
         ->add(new JwtAuthMiddleware());
 
     $app->post('/api/society/events/{id}/send-reminders', [NotificationController::class, 'sendReminders'])
+        ->add(new JwtAuthMiddleware());
+    
+    $app->get('/api/society/analytics', [AnalyticsController::class, 'getSocietyAnalytics'])
         ->add(new JwtAuthMiddleware());
 
     $app->get('/api/admin/pending-events', [EventController::class, 'getPendingEvents'])
