@@ -86,6 +86,9 @@ return function (App $app) {
 
     $app->post('/api/admin/events/{id}/review', [EventController::class, 'reviewEvent'])
         ->add(new JwtAuthMiddleware());
+    
+    $app->get('/api/admin/analytics', [AnalyticsController::class, 'getAdminAnalytics'])
+        ->add(new JwtAuthMiddleware());
 
     $app->get('/api/student/events/{id}', [EventController::class, 'getStudentEvent'])
         ->add(new JwtAuthMiddleware());
