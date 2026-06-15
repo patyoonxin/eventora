@@ -1178,4 +1178,106 @@ class EventController
             return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
         }
     }
+
+     public function getAllEvents(Request $request, Response $response): Response
+    {
+        $db = \App\Models\Database::connect();
+
+        try {
+            $user = $request->getAttribute('user');
+            if (!$user || $user->role !== 'faculty_admin') { // Matches User(id, name, email, password_hash, role) schema [cite: 69]
+                $response->getBody()->write(json_encode([
+                    "status" => "error",
+                    "message" => "Access denied. Admin privileges required."
+                ]));
+                return $response
+                    ->withHeader('Content-Type', 'application/json')
+                    ->withStatus(403);
+            }
+
+            // Relational SQL query to grab ALL event statuses along with the host society name [cite: 70, 71]
+            $stmt = $db->prepare("
+                SELECT e.*, s.name AS society_name 
+                FROM events e
+                JOIN societies s ON e.society_id = s.id
+                ORDER BY e.starts_at ASC
+            ");
+
+            // 🚨 FIX: You must explicitly execute the statement before fetching!
+            $stmt->execute();
+
+            // Naming changed to $allEvents since it includes approved/pending/cancelled
+            $allEvents = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+            // 3. Return shaped response data structure matching A_Home.vue expectations
+            $response->getBody()->write(json_encode([
+                "status" => "success",
+                "data" => $allEvents
+            ]));
+
+            return $response
+                ->withHeader('Content-Type', 'application/json')
+                ->withStatus(200);
+
+        } catch (\PDOException $e) {
+            // Safe logging without leaking DB architecture strings to public clients [cite: 28]
+            $response->getBody()->write(json_encode([
+                "status" => "error",
+                "message" => "Internal Database Error. Please contact systems administrator."
+            ]));
+
+            return $response
+                ->withHeader('Content-Type', 'application/json')
+                ->withStatus(500);
+        }
+    }
+
+    public function deleteEvent(Request $request, Response $response, array $args): Response
+{
+    $eventId = $args['id'];
+
+    $db = \App\Models\Database::connect();
+
+    try {
+        $user = $request->getAttribute('user');
+        if (!$user || $user->role !== 'faculty_admin') {
+            $response->getBody()->write(json_encode([
+                "status" => "error",
+                "message" => "Access denied. Admin privileges required."
+            ]));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+
+        // 3. Prepare the DELETE query using safe PDO bound parameters
+        $stmt = $db->prepare("DELETE FROM events WHERE id = :id");
+        $stmt->execute(['id' => $eventId]);
+
+        // Check if any rows were actually affected/removed from the table
+        if ($stmt->rowCount() === 0) {
+            $response->getBody()->write(json_encode([
+                "status" => "error",
+                "message" => "Target event could not be found or was already deleted."
+            ]));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(44);
+        }
+
+        // 4. Return successful execution structure matching your frontend's layout expectations
+        $response->getBody()->write(json_encode([
+            "status" => "success",
+            "message" => "Event record permanently wiped from storage."
+        ]));
+
+        return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+
+    } catch (\PDOException $e) {
+        // Handle Foreign Key Constraint Failures gracefully 
+        // (e.g., if tickets are still attached to this event, preventing safe hard deletion)
+        $response->getBody()->write(json_encode([
+            "status" => "error",
+            "message" => "Cannot delete event. Student tickets are already attached to this record."
+        ]));
+
+        return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+    }
+}
 }

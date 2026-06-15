@@ -14,7 +14,7 @@ const isLoading = ref(true);
 const errorMessage = ref("");
 const isSubmitting = ref(false); // Prevents duplicate double-clicks
 
-// Optimized: Fetch ONLY this single event by its ID
+// Fetch event payload on component mount
 onMounted(async () => {
   try {
     const response = await fetch(`${API_BASE}/api/admin/events/${eventId}`, {
@@ -60,7 +60,7 @@ const formatDate = (dateString) => {
   return date.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
 };
 
-// Centralized Action Workflow function for both buttons
+// Centralized Status Update Workflow (Approve / Reject / Cancel)
 const submitReview = async (newStatus) => {
   if (!confirm(`Are you sure you want to set this event status to ${newStatus}?`)) return;
   
@@ -73,16 +73,45 @@ const submitReview = async (newStatus) => {
         "Content-Type": "application/json",
         "Accept": "application/json"
       },
-      body: JSON.stringify({ status: newStatus }) // 'approved' or 'rejected'
+      body: JSON.stringify({ status: newStatus })
     });
 
     const json = await response.json();
 
     if (response.ok && json.status === "success") {
-      alert(`Event has been successfully ${newStatus}!`);
+      alert(`Event status updated successfully to ${newStatus}!`);
       router.push('/admin/home'); 
     } else {
-      throw new Error(json.message || `Failed to ${newStatus} event.`);
+      throw new Error(json.message || `Failed to transition state to ${newStatus}.`);
+    }
+  } catch (err) {
+    alert(err.message);
+  } finally {
+    isSubmitting.value = false;
+  }
+};
+
+// Permanent Hard-Delete Workflow Handler (Satisfies full entity deletion criteria)
+const handleDelete = async () => {
+  if (!confirm("CRITICAL WARNING: Are you absolutely sure you want to permanently DELETE this event record from the repository? This operation is irreversible.")) return;
+
+  isSubmitting.value = true;
+  try {
+    const response = await fetch(`${API_BASE}/api/admin/events/${eventId}`, {
+      method: "DELETE",
+      headers: {
+        "Authorization": `Bearer ${authStore.token}`,
+        "Accept": "application/json"
+      }
+    });
+
+    const json = await response.json();
+
+    if (response.ok && json.status === "success") {
+      alert("Event record successfully removed from storage.");
+      router.push('/admin/home');
+    } else {
+      throw new Error(json.message || "Failed to finalize database purge.");
     }
   } catch (err) {
     alert(err.message);
@@ -93,6 +122,7 @@ const submitReview = async (newStatus) => {
 
 const handleReject = () => submitReview('rejected');
 const handleApprove = () => submitReview('approved');
+const handleCancel = () => submitReview('cancelled');
 </script>
 
 <template>
@@ -205,22 +235,48 @@ const handleApprove = () => submitReview('approved');
       <div
         class="mt-auto pt-8 pb-6 flex items-center gap-4 bg-white dark:bg-gray-900"
       >
-        <button
+        <template v-if="event.status === 'pending'">
+          <button
             @click="handleReject"
+            :disabled="isSubmitting"
             type="button"
-          class="flex items-center justify-center gap-2 px-5 py-4 bg-purple-100 dark:bg-purple-950/60 rounded-2xl min-w-[110px] sm:min-w-[130px]"
-        >
-          Reject          
-        </button>
+            class="flex items-center justify-center gap-2 px-5 py-4 bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300 font-bold rounded-2xl min-w-[110px] sm:min-w-[130px] disabled:opacity-50"
+          >
+            Reject          
+          </button>
 
-        <button
-          @click="handleApprove"
-          type="button"
-          class="flex-1 py-4 text-base sm:text-lg font-black text-white tracking-[0.2em] uppercase bg-gradient-to-r from-blue-600 to-purple-500 rounded-2xl shadow-md shadow-purple-500/20 hover:opacity-95 transition-opacity active:scale-[0.99]"
-        >
-          Approve
-        </button>
+          <button
+            @click="handleApprove"
+            :disabled="isSubmitting"
+            type="button"
+            class="flex-1 py-4 text-base sm:text-lg font-black text-white tracking-[0.2em] uppercase bg-gradient-to-r from-blue-600 to-purple-500 rounded-2xl shadow-md shadow-purple-500/20 hover:opacity-95 transition-opacity active:scale-[0.99] disabled:opacity-50"
+          >
+            Approve
+          </button>
+        </template>
+
+        <template v-else-if="event.status === 'approved'">
+          <button
+            @click="handleCancel"
+            :disabled="isSubmitting"
+            type="button"
+            class="flex-1 py-4 text-base sm:text-lg font-black text-white tracking-[0.2em] uppercase bg-gradient-to-r from-amber-500 to-red-500 rounded-2xl shadow-md hover:opacity-95 transition-opacity disabled:opacity-50"
+          >
+            Cancel Event
+          </button>
+        </template>
+
+        <template v-else-if="event.status === 'rejected' || event.status === 'cancelled'">
+          <button
+            @click="handleDelete"
+            :disabled="isSubmitting"
+            type="button"
+            class="flex-1 py-4 text-base sm:text-lg font-black text-white tracking-[0.2em] uppercase bg-red-600 rounded-2xl shadow-md shadow-red-600/20 hover:bg-red-700 transition-colors disabled:opacity-50"
+          >
+            Delete Record
+          </button>
+        </template>
       </div>
-    </div>
+      </div>
   </div>
 </template>
