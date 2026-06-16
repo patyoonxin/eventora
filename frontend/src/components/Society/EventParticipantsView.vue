@@ -1,10 +1,11 @@
 <script setup>
 import { ref, onMounted } from "vue";
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import axios from "axios";
 import { useAuthStore } from "@/stores/auth";
 
 const route = useRoute();
+const router = useRouter();
 const API_BASE = import.meta.env.VITE_API_BASE_URL;
 const authStore = useAuthStore();
 
@@ -90,20 +91,19 @@ const handleSendNotification = async () => {
 <template>
   <div class="max-w-4xl mx-auto p-4 sm:p-6 min-h-screen flex flex-col justify-between">
     <div>
-      <div class="mb-6">
-        <router-link
-          :to="{ name: 'SocietyEventDetails', params: { id: eventId } }"
-          class="inline-flex items-center text-sm font-medium text-[var(--text)] hover:text-[var(--accent)] transition-colors duration-200 group"
-        >
-          <span class="mr-2 transform group-hover:-translate-x-1 transition-transform duration-200">←</span>
-          Back to Event Details
-        </router-link>
-      </div>
+          <div class="flex items-center gap-4 mb-6">
+      <button 
+        @click="router.back()"
+        class="w-10 h-10 flex items-center justify-center bg-[var(--bg)] text-[var(--text-h)] border border-[var(--border)] rounded-full shadow-sm hover:scale-105 active:scale-95 transition-transform focus:outline-none"
+        aria-label="Go back"
+      >
+        <span class="text-xl font-bold">←</span>
+      </button>
+      
+      <h2 class="text-2xl font-bold text-[var(--text-h)]">Registered Participants</h2>
+    </div>
 
       <div class="mb-8">
-        <h2 class="text-2xl sm:text-3xl font-bold text-[var(--text-h)] tracking-tight">
-          Registered Participants
-        </h2>
         <p class="text-sm sm:text-base text-[var(--text)] mt-1 font-medium">
           Total Registrations:
           <span class="text-[var(--accent)] font-semibold">{{ participants.length }}</span>
@@ -126,7 +126,7 @@ const handleSendNotification = async () => {
           class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border border-[var(--border)] bg-[var(--bg)] shadow-sm hover:shadow-md transition-all duration-200"
         >
           <div class="space-y-1.5">
-            <h3 class="font-semibold text-lg text-[var(--text-h)] leading-none">
+            <h3 class="font-semibold text-lg text-[var(--text-h)] leading-none text-left ">
               {{ person.user_name }}
             </h3>
             <p class="text-sm text-[var(--text)] flex items-center gap-2">
@@ -142,7 +142,7 @@ const handleSendNotification = async () => {
             <span
               :class="[
                 'inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold tracking-wide uppercase border',
-                person.ticket_status === 'valid' || person.ticket_status === 'checked_in'
+                person.ticket_status === 'valid' || person.ticket_status === 'used'
                   ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800'
                   : 'bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800',
               ]"

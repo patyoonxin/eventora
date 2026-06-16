@@ -16,6 +16,7 @@ const authStore = useAuthStore();
 const event = ref(null);
 const isLoading = ref(true);
 const errorMessage = ref("");
+const participants = ref([]);
 
 onMounted(async () => {
   try {
@@ -35,6 +36,8 @@ onMounted(async () => {
       const foundEvent = json.data.find((e) => e.id == eventId);
       if (foundEvent) {
         event.value = foundEvent;
+
+        await fetchParticipants();
       } else {
         throw new Error("Event could not be found in your past society inventory.");
       }
@@ -47,6 +50,32 @@ onMounted(async () => {
     isLoading.value = false;
   }
 });
+
+const fetchParticipants = async () => {
+  try {
+    const response = await fetch(
+      `${API_BASE}/api/society/events/${eventId}/participants`,
+      {
+        headers: {
+          Authorization: `Bearer ${authStore.token}`,
+          Accept: "application/json",
+        },
+      }
+    );
+
+    const json = await response.json();
+
+    if (json.status === "success") {
+      participants.value = json.data;
+    } else {
+      throw new Error(json.message);
+    }
+  } catch (err) {
+    console.error(err);
+  }
+};
+
+const registeredCount = computed(() => participants.value.length);
 
 // Formatting Helpers
 const tagsArray = computed(() => {
@@ -251,11 +280,19 @@ const handleExportAttendance = async () => {
       </div>
 
       <div class="mt-auto pt-8 pb-6 flex items-center gap-4 bg-white dark:bg-gray-900">
-        <div class="flex items-center justify-center gap-2 px-5 py-4 bg-gray-100 dark:bg-gray-800 rounded-2xl min-w-[110px] sm:min-w-[130px]">
-          <span class="text-base text-gray-500 dark:text-gray-400 pi pi-calendar"></span>
-          <span class="text-xs font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-            Past
-          </span>
+        <div
+          class="flex items-center justify-center gap-2 px-5 py-4 bg-purple-100 dark:bg-purple-950/60 rounded-2xl min-w-[110px] sm:min-w-[130px]"
+        >
+          <router-link :to="`/society/events/${eventId}/participants`">
+            <span
+              class="text-base text-gray-700 dark:text-gray-300 pi pi-users"
+            ></span>
+            <span
+              class="text-base sm:text-lg font-bold text-gray-800 dark:text-gray-200"
+            >
+              {{ registeredCount }}/{{ event.capacity }}
+            </span>
+          </router-link>
         </div>
 
         <button
