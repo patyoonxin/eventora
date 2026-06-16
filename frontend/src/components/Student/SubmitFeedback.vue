@@ -102,10 +102,7 @@ const handleSaveFeedback = async () => {
         </h2>
       </div>
 
-      <div class="flex items-center gap-4 mb-6 px-1">
-        <div
-          class="w-14 h-14 bg-slate-400 dark:bg-slate-600 rounded-full flex-shrink-0 shadow-sm"
-        ></div>
+      <div class="flex items-center gap-4 mb-6 px-2">
         <div>
           <h4 class="text-base font-bold text-slate-800 dark:text-gray-200">
             {{ authStore.user?.name || "Username" }}

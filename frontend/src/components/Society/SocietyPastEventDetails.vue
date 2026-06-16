@@ -172,7 +172,7 @@ const handleExportAttendance = async () => {
           class="w-full h-full object-cover"
         />
         <button
-          @click="router.back()"
+          @click="router.push('/society/history')"
           class="absolute top-5 left-5 w-12 h-12 flex items-center justify-center bg-white dark:bg-gray-800 text-gray-800 dark:text-white rounded-full shadow-lg hover:scale-105 active:scale-95 transition-all"
         >
           <span class="text-xl font-bold">←</span>
