@@ -66,6 +66,9 @@ return function (App $app) {
     $app->get('/api/society/events/{id}/feedbacks', [FeedbackController::class, 'getEventFeedbacks'])
         ->add(new JwtAuthMiddleware());
 
+    $app->get('/api/society/events/{id}/feedback-summary', [FeedbackController::class, 'getAiSummary'])
+        ->add(new JwtAuthMiddleware());
+
     $app->get('/api/society/events/{id}/attendance/export', [EventController::class, 'exportAttendance'])
         ->add(new JwtAuthMiddleware());
     

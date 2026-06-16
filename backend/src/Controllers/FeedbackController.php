@@ -176,4 +176,97 @@ class FeedbackController
             return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
         }
     }
+
+   public function getAiSummary(Request $request, Response $response, array $args): Response
+    {
+        // 1. Authenticate using your existing token system
+        $tokenData = $request->getAttribute('user');
+        if (!$tokenData) {
+            $response->getBody()->write(json_encode([
+                "status" => "error",
+                "message" => "Access Denied: Missing session parameters."
+            ]));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(401);
+        }
+
+        $eventId = $args['id'] ?? null;
+        $userId = $tokenData->id; 
+        $userRole = $tokenData->role; 
+
+        if ($userRole !== 'organiser') {
+            $response->getBody()->write(json_encode([
+                "status" => "error",
+                "message" => "Forbidden: Student profiles cannot pull dashboard analytics."
+            ]));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+
+        $db = \App\Models\Database::connect();
+
+        try {
+            // 2. Ownership Verification
+            $verifySql = "SELECT e.id, e.title FROM events e JOIN societies s ON e.society_id = s.id WHERE e.id = :event_id AND s.id = :user_id";
+            $verifyStmt = $db->prepare($verifySql);
+            $verifyStmt->execute(['event_id' => $eventId, 'user_id' => $userId]);
+            $eventMeta = $verifyStmt->fetch(\PDO::FETCH_ASSOC);
+
+            if (!$eventMeta) {
+                $response->getBody()->write(json_encode([
+                    "status" => "error",
+                    "message" => "Resource not found, or you lack organizational permission bounds."
+                ]));
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(404);
+            }
+
+            // 3. Fetch collective text feedback submissions
+            $feedbackSql = "SELECT f.rating, f.comment FROM feedbacks f WHERE f.event_id = :event_id AND f.comment IS NOT NULL AND f.comment != ''";
+            $feedbackStmt = $db->prepare($feedbackSql);
+            $feedbackStmt->execute(['event_id' => $eventId]);
+            $feedbacks = $feedbackStmt->fetchAll(\PDO::FETCH_ASSOC);
+
+            if (empty($feedbacks)) {
+                $response->getBody()->write(json_encode([
+                    "status" => "success",
+                    "data" => ["summary" => "Not enough text feedback has been provided yet to generate an AI summary."]
+                ]));
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+            }
+
+            // 4. Format prompt
+            $feedbackText = "";
+            foreach ($feedbacks as $index => $fb) {
+                $feedbackText .= ($index + 1) . ". [Rating: " . $fb['rating'] . "/5] - " . $fb['comment'] . "\n";
+            }
+            $prompt = "You are an AI Event Analytics Assistant for UTM Student Societies. Summarize the following feedback comments submitted by attendees. Provide a brief breakdown of what went well, what needs improvement, and actionable bullet-point suggestions for future event organizers. Keep it brief and constructive.\n\nFeedback:\n" . $feedbackText;
+
+            // =================================================================
+            // 5. USE THE NEW AI SERVICE
+            // =================================================================
+            $gemini = new \App\Services\GeminiService();
+            $aiSummaryText = $gemini->generateText($prompt);
+
+            if ($aiSummaryText === null) {
+                $response->getBody()->write(json_encode([
+                    "status" => "error",
+                    "message" => "Failed to communicate with AI processing core engine."
+                ]));
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+            }
+            // =================================================================
+
+            // 6. Return response
+            $response->getBody()->write(json_encode([
+                "status" => "success",
+                "data" => ["summary" => $aiSummaryText]
+            ]));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+
+        } catch (\PDOException $e) {
+            $response->getBody()->write(json_encode([
+                "status" => "error",
+                "message" => "Internal Database processing exception occurred."
+            ]));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+        }
+    }
 }

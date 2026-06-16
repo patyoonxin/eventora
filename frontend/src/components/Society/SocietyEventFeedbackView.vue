@@ -15,9 +15,13 @@ const eventTitle = ref("Loading Event Details...");
 const isLoading = ref(true);
 const errorMessage = ref("");
 
+// NEW AI SUMMARY STATES
+const aiSummary = ref("");
+const isAiLoading = ref(false);
+const aiError = ref("");
+
 onMounted(async () => {
   try {
-    // Assuming your endpoint returns event meta information along with feedback list
     const response = await fetch(`${API_BASE}/api/society/events/${eventId}/feedbacks`, {
       headers: {
         "Authorization": `Bearer ${authStore.token}`,
@@ -38,6 +42,30 @@ onMounted(async () => {
     isLoading.value = false;
   }
 });
+
+// NEW FUNCTION: Fetch Summary from Slim 4 backend
+const fetchAiSummary = async () => {
+  isAiLoading.value = true;
+  aiError.value = "";
+  try {
+    const response = await fetch(`${API_BASE}/api/society/events/${eventId}/feedback-summary`, {
+      headers: {
+        "Authorization": `Bearer ${authStore.token}`,
+        "Accept": "application/json",
+      },
+    });
+    const json = await response.json();
+    if (json.status === "success") {
+      aiSummary.value = json.data.summary;
+    } else {
+      throw new Error(json.message || "AI engine failed to respond.");
+    }
+  } catch (err) {
+    aiError.value = err.message;
+  } finally {
+    isAiLoading.value = false;
+  }
+};
 
 // Aggregate Analytics Calculators
 const totalFeedbacks = computed(() => feedbacks.value.length);
@@ -115,6 +143,48 @@ const formatDate = (dateString) => {
           </div>
         </div>
 
+        <div class="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-950/20 dark:to-purple-950/30 border border-indigo-100 dark:border-indigo-900/40 rounded-3xl p-6 text-left shadow-sm">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h4 class="text-lg font-bold text-indigo-900 dark:text-indigo-200 flex items-center gap-2">
+                <span class="pi pi-sparkles text-indigo-500"></span> AI Feedback Executive Summary
+              </h4>
+              <p class="text-xs text-indigo-600/80 dark:text-indigo-400/80 mt-1">
+                Synthesize structural raw feedback logs instantly using Gemini intelligence.
+              </p>
+            </div>
+            <button 
+              v-if="!aiSummary && feedbacks.length > 0"
+              @click="fetchAiSummary"
+              :disabled="isAiLoading"
+              class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-xl text-sm font-bold shadow-sm transition-all whitespace-nowrap active:scale-95"
+            >
+              <span v-if="isAiLoading" class="pi pi-spin pi-spinner mr-2"></span>
+              {{ isAiLoading ? 'Synthesizing...' : 'Generate Summary' }}
+            </button>
+          </div>
+
+          <div v-if="isAiLoading" class="mt-4 pt-4 border-t border-indigo-100 dark:border-indigo-900/40 text-center py-6 text-indigo-600 dark:text-indigo-400 text-sm font-medium">
+            <span class="pi pi-spin pi-spinner text-lg block mb-2"></span>
+            Reading through individual student logs to construct insights...
+          </div>
+
+          <div v-else-if="aiError" class="mt-4 pt-4 border-t border-indigo-100 dark:border-indigo-900/40 text-red-500 text-sm">
+            {{ aiError }}
+          </div>
+
+          <div v-else-if="aiSummary" class="mt-4 pt-4 border-t border-indigo-100 dark:border-indigo-900/40">
+            <p class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">
+              {{ aiSummary }}
+            </p>
+            <button 
+              @click="fetchAiSummary" 
+              class="mt-4 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1"
+            >
+              <span class="pi pi-refresh"></span> Regenerate Summary
+            </button>
+          </div>
+        </div>
         <div class="text-left mt-8">
           <h4 class="text-lg font-bold text-gray-800 dark:text-gray-200 mb-4 pl-1">
             Individual Feedback Logs
