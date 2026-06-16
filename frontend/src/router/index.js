@@ -1,10 +1,15 @@
 import { createRouter, createWebHistory } from "vue-router";
 
 // 1. Import Public/General Pages
+import Register from "../pages/Register.vue";
 import LoginView from "../pages/LoginView.vue";
+import ForgotPassword from "../pages/ForgotPassword.vue";
 import Home from "../pages/Home.vue";
 import MyTickets from "../pages/MyTickets.vue";
 import History from "../pages/History.vue";
+import Profile from "../pages/Profile.vue";
+
+
 
 // 2. Import Society Role Pages
 import S_Home from "../pages/Society/S_Home.vue";
@@ -52,10 +57,37 @@ const router = createRouter({
       props: true,
     },
     {
+      path: '/register',
+      name: 'Register',
+      component: Register
+    },
+    {
       path: "/login",
       name: "Login",
       component: LoginView,
       meta: { role: "guest" },
+    },
+    {
+      path: "/forgot-password",
+      name: "ForgotPassword",
+      component: ForgotPassword,
+      meta: { role: "guest" },
+    },
+    {
+      path: '/create-new-password',
+      name: 'CreateNewPassword',
+      component: () => import('@/pages/CreateNewPassword.vue')
+    },
+    {
+      path: "/login",
+      name: "Login",
+      component: LoginView,
+      meta: { role: "guest" },
+    },
+    {
+      path: '/profile',
+      name: 'Profile',
+      component: Profile
     },
     {
       path: "/society/home",
