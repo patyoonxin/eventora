@@ -74,9 +74,9 @@ const router = createRouter({
       meta: { role: "guest" },
     },
     {
-      path: '/create-new-password',
-      name: 'CreateNewPassword',
-      component: () => import('@/pages/CreateNewPassword.vue')
+      path: '/reset-password',
+      name: 'ResetPassword',
+      component: () => import('@/pages/ResetPassword.vue')
     },
     {
       path: "/login",

@@ -33,6 +33,7 @@ return function (App $app) {
     $app->post('/api/login', [AuthController::class, 'login']);
     $app->get('/api/events', [EventController::class, 'index']);
 
+
     // PROTECTED ROUTES (Locked Down behind our JWT Check)
     $app->get('/api/users/past-events', [EventController::class, 'getPastEvents'])
         ->add(new JwtAuthMiddleware()); // This line locks the route down
@@ -54,4 +55,20 @@ return function (App $app) {
 
     $app->get('/api/admin/pending-events', [EventController::class, 'getPendingEvents'])
         ->add(new JwtAuthMiddleware());
+
+    $app->get('/api/profile', [AuthController::class, 'getProfile'])
+        ->add(new JwtAuthMiddleware());
+
+    $app->put('/api/profile', [AuthController::class, 'updateProfile'])
+        ->add(new JwtAuthMiddleware());
+
+    $app->post('/api/profile/avatar', [AuthController::class, 'uploadAvatar'])
+        ->add(new JwtAuthMiddleware());
+
+    $app->put('/api/profile/password', [AuthController::class, 'changePassword'])
+    ->add(new JwtAuthMiddleware());
+
+    $app->post('/api/forgot-password', [AuthController::class, 'forgotPassword']);
+    
+    $app->post('/api/reset-password', [AuthController::class, 'resetPassword']);
 };

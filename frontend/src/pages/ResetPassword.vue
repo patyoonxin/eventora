@@ -1,8 +1,11 @@
 <script setup>
-import { ref, computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 
 const router = useRouter()
+const route = useRoute()
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL
 
 const form = ref({ password: '', confirm: '' })
 const errors = ref({})
@@ -10,6 +13,16 @@ const isSubmitting = ref(false)
 const submitted = ref(false)
 const showPassword = ref(false)
 const showConfirm = ref(false)
+const token = ref('')
+const tokenError = ref(false)
+
+// Grab token from URL: /reset-password?token=abc123
+onMounted(() => {
+  token.value = route.query.token || ''
+  if (!token.value) {
+    tokenError.value = true
+  }
+})
 
 const pwStrength = computed(() => {
   const pw = form.value.password
@@ -37,9 +50,32 @@ const validate = () => {
 const handleSubmit = async () => {
   if (!validate()) return
   isSubmitting.value = true
-  await new Promise(r => setTimeout(r, 1500))
-  isSubmitting.value = false
-  submitted.value = true
+  try {
+    const response = await fetch(`${API_BASE}/api/reset-password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({
+        token: token.value,
+        new_password: form.value.password,
+      }),
+    })
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      errors.value.password = data.error || 'Reset failed. Link may have expired.'
+      return
+    }
+
+    submitted.value = true
+  } catch (err) {
+    errors.value.password = 'Something went wrong. Please try again.'
+  } finally {
+    isSubmitting.value = false
+  }
 }
 </script>
 
@@ -52,23 +88,37 @@ const handleSubmit = async () => {
       <div class="card">
 
         <!-- Logo -->
-        <div class="logo-wrap" style="animation: logoFloat 3s ease-in-out infinite">
-          <img src="@/assets/logo.png" alt="EventOra Logo" class="logo" />
-        </div>
+<div class="logo-wrap" style="animation: logoFloat 3s ease-in-out infinite">
+  <img src="@/assets/logo.png" alt="EventOra Logo" class="logo" />
+</div>
 
-        <!-- Success State -->
-        <div v-if="submitted" class="success-state">
-          <div class="success-icon">
-            <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-          <h2 class="success-title">Password updated!</h2>
-          <p class="success-body">Your password has been reset successfully. You can now sign in with your new password.</p>
-          <button @click="router.push('/login')" class="btn-primary w-full">
-            Go to Sign In
-          </button>
-        </div>
+<!-- Invalid token -->
+<div v-if="tokenError" class="success-state">
+  <div class="success-icon" style="background: linear-gradient(135deg, #ef4444, #f87171);">
+    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+    </svg>
+  </div>
+  <h2 class="success-title">Invalid link</h2>
+  <p class="success-body">This reset link is missing or has expired. Please request a new one.</p>
+  <button @click="router.push('/forgot-password')" class="btn-primary w-full">
+    Request new link
+  </button>
+</div>
+
+<!-- Success -->
+<div v-else-if="submitted" class="success-state">
+  <div class="success-icon">
+    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+    </svg>
+  </div>
+  <h2 class="success-title">Password updated!</h2>
+  <p class="success-body">Your password has been reset successfully. You can now sign in with your new password.</p>
+  <button @click="router.push('/login')" class="btn-primary w-full">
+    Go to Sign In
+  </button>
+</div>
 
         <!-- Form State -->
         <div v-else class="form-state">

@@ -13,8 +13,10 @@ class JwtAuthMiddleware
 {
     public function __invoke(Request $request, Handler $handler): Response
     {
-        // 1. Grab the Authorization header from the request
+        // Get Authorization header
         $authHeader = $request->getHeaderLine('Authorization');
+
+        error_log("AUTH HEADER: " . $authHeader);
 
         if (!$authHeader || !preg_match('/Bearer\s(\S+)/', $authHeader, $matches)) {
             return $this->unauthorizedResponse("Access token missing or invalid.");
@@ -22,37 +24,56 @@ class JwtAuthMiddleware
 
         $jwtToken = $matches[1];
 
-        try {
-            // 2. Decode the token using your secret key from the .env file
+        error_log("TOKEN RECEIVED: " . $jwtToken);
 
-            // Option 1: Use the config
+        try {
+
+            // Load JWT secret
             $config = require __DIR__ . '/../../config/settings.php';
             $secretKey = $config['jwt']['secret'];
-            $decoded = JWT::decode($jwtToken, new Key($secretKey, 'HS256'));
 
-            // 3. Extract the user object and attach it securely to the request attributes
+            error_log("SECRET KEY: " . $secretKey);
+
+            // Decode JWT
+            $decoded = JWT::decode(
+                $jwtToken,
+                new Key($secretKey, 'HS256')
+            );
+
+            // Extract user payload
             $payload = (array) $decoded;
             $user = $payload['user'] ?? $payload;
 
-            $request = $request->withAttribute('user', (object) $user);
+            // Attach user to request
+            $request = $request->withAttribute(
+                'user',
+                (object) $user
+            );
 
-            // 4. Pass the request forward cleanly to your controller
+            // Continue request
             return $handler->handle($request);
+
         } catch (\Exception $e) {
-            error_log("JWT Decode Error: " . $e->getMessage());
-            error_log("Token: " . substr($jwtToken, 0, 50) . "...");
-            error_log("Secret used: " . $secretKey);
-            return $this->unauthorizedResponse("Session expired or token tamper detected.");
+
+            error_log("JWT ERROR: " . $e->getMessage());
+
+            return $this->unauthorizedResponse(
+                $e->getMessage()
+            );
         }
     }
 
     private function unauthorizedResponse(string $message): Response
     {
         $response = new SlimResponse();
+
         $response->getBody()->write(json_encode([
             "status" => "error",
             "message" => "Unauthorized: " . $message
         ]));
-        return $response->withStatus(401)->withHeader('Content-Type', 'application/json');
+
+        return $response
+            ->withStatus(401)
+            ->withHeader('Content-Type', 'application/json');
     }
 }

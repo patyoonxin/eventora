@@ -8,6 +8,8 @@ const isSubmitting = ref(false)
 const submitted = ref(false)
 const errors = ref({})
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL
+
 const isValidEmail = (val) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)
 
 const handleSubmit = async () => {
@@ -23,13 +25,30 @@ const handleSubmit = async () => {
   }
 
   isSubmitting.value = true
-  await new Promise(r => setTimeout(r, 1500))
-  isSubmitting.value = false
-  submitted.value = true
-}
+  try {
+    const response = await fetch(`${API_BASE}/api/forgot-password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({ email: email.value }),
+    })
 
-const goToCreatePassword = () => {
-  router.push('/create-new-password')
+    const text = await response.text()
+    console.log('Response:', text)
+
+    if (!response.ok) {
+      errors.value.email = JSON.parse(text).error || 'Something went wrong.'
+      return
+    }
+
+    submitted.value = true
+  } catch (err) {
+    errors.value.email = 'Something went wrong. Please try again.'
+  } finally {
+    isSubmitting.value = false
+  }
 }
 </script>
 
@@ -47,26 +66,20 @@ const goToCreatePassword = () => {
         </div>
 
         <!-- Success State -->
-        <div v-if="submitted" class="success-state">
+      <div v-if="submitted" class="success-state">
           <div class="success-icon">
             <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
             </svg>
-          </div>
-          <h2 class="success-title">Check your email</h2>
-          <p class="success-body">
-            If <span class="email-highlight">{{ email }}</span> is registered, you'll receive a reset link shortly.
-          </p>
-
-          <!-- Link to Create New Password page -->
-          <button @click="goToCreatePassword" class="btn-primary w-full">
-            Open Reset Link →
-          </button>
-
-          <button @click="router.push('/login')" class="btn-ghost w-full mt-2">
-            Back to Sign In
-          </button>
         </div>
+        <h2 class="success-title">Check your email</h2>
+        <p class="success-body">
+          If <span class="email-highlight">{{ email }}</span> is registered, you'll receive a reset link shortly.
+        </p>
+        <button @click="router.push('/login')" class="btn-primary w-full">
+          Back to Sign In
+        </button>
+      </div>
 
         <!-- Form State -->
         <div v-else class="form-state">

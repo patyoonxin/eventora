@@ -1,35 +1,46 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 
-const router = useRouter()
+const router    = useRouter()
+const authStore = useAuthStore()
 
-const isEditing = ref(false)
-const isSaving = ref(false)
+// ── Guard: redirect if not logged in ──────────────────────────────────────
+if (!authStore.isLoggedIn) {
+  router.push('/login')
+}
+
+const isEditing   = ref(false)
+const isSaving    = ref(false)
 const saveSuccess = ref(false)
-const errors = ref({})
+const errors      = ref({})
 
-const avatarInput = ref(null)
+const avatarInput   = ref(null)
 const avatarPreview = ref(null)
+const avatarFile    = ref(null) // ✅ store the actual File for upload
 
+// ── Form seeded from store (not hardcoded) ────────────────────────────────
 const form = ref({
-  fullName: 'Vishal Khadok',
-  email: 'hello@halallab.co',
-  phone: '408-841-0926',
+  fullName: authStore.user?.name  || '',
+  email:    authStore.user?.email || '',
+  phone:    authStore.user?.phone || '',
 })
 const original = ref({ ...form.value })
+
+// ── Initials from store getter ─────────────────────────────────────────────
+const initials = computed(() => authStore.userInitials)
+
+// ── Avatar: show uploaded preview, else store profile_picture, else initials ───
+const avatarSrc = computed(() => avatarPreview.value || authStore.user?.profile_picture || null)
 
 const isValidEmail = (val) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)
 const isValidPhone = (val) => /^[\d\s\-+()]{7,15}$/.test(val)
 
-const initials = computed(() =>
-  form.value.fullName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
-)
-
 const validate = () => {
   errors.value = {}
   if (!form.value.fullName.trim()) errors.value.fullName = 'Full name is required'
-  if (!form.value.email.trim()) errors.value.email = 'Email is required'
+  if (!form.value.email.trim())    errors.value.email    = 'Email is required'
   else if (!isValidEmail(form.value.email)) errors.value.email = 'Please enter a valid email'
   if (form.value.phone && !isValidPhone(form.value.phone)) errors.value.phone = 'Please enter a valid phone number'
   return Object.keys(errors.value).length === 0
@@ -38,51 +49,91 @@ const validate = () => {
 const handleSave = async () => {
   if (!validate()) return
   isSaving.value = true
-  await new Promise(r => setTimeout(r, 1500))
-  isSaving.value = false
-  saveSuccess.value = true
-  original.value = { ...form.value }
-  isEditing.value = false
-  setTimeout(() => saveSuccess.value = false, 3000)
+
+  try {
+    // ✅ Upload avatar first if a new file was chosen
+    if (avatarFile.value) {
+      await authStore.updateAvatar(avatarFile.value)
+      avatarFile.value = null
+    }
+
+    // ✅ Save name/email to API via store
+    await authStore.updateProfile({
+      name:  form.value.fullName,
+      email: form.value.email,
+    })
+
+    original.value  = { ...form.value }
+    isEditing.value = false
+    saveSuccess.value = true
+    setTimeout(() => saveSuccess.value = false, 3000)
+
+  } catch (err) {
+    errors.value.fullName = err.message || 'Failed to save profile'
+  } finally {
+    isSaving.value = false
+  }
 }
 
 const handleCancel = () => {
-  form.value = { ...original.value }
-  errors.value = {}
+  form.value      = { ...original.value }
+  errors.value    = {}
+  avatarPreview.value = null
+  avatarFile.value    = null
   isEditing.value = false
 }
 
 const triggerAvatarUpload = () => { if (isEditing.value) avatarInput.value?.click() }
+
 const handleAvatarChange = (e) => {
   const file = e.target.files[0]
   if (!file) return
+  avatarFile.value = file // ✅ keep reference for upload on save
   const reader = new FileReader()
   reader.onload = (ev) => avatarPreview.value = ev.target.result
   reader.readAsDataURL(file)
 }
 
+// ── Sign out ───────────────────────────────────────────────────────────────
+const handleSignOut = () => {
+  authStore.logout()
+  router.push('/login')
+}
+
+// ── Fetch fresh data on mount ──────────────────────────────────────────────
+onMounted(async () => {
+  await authStore.fetchProfile()
+  // Sync form with freshly fetched data
+  form.value = {
+    fullName: authStore.user?.name  || '',
+    email:    authStore.user?.email || '',
+    phone:    authStore.user?.phone || '',
+  }
+  original.value = { ...form.value }
+})
+
+// ── Password modal (unchanged) ─────────────────────────────────────────────
 const showPasswordModal = ref(false)
-const pwForm = ref({ current: '', newPw: '', confirm: '' })
-const pwErrors = ref({})
-const pwSaving = ref(false)
+const pwForm    = ref({ current: '', newPw: '', confirm: '' })
+const pwErrors  = ref({})
+const pwSaving  = ref(false)
 const pwSuccess = ref(false)
 const showCurrent = ref(false)
-const showNew = ref(false)
+const showNew     = ref(false)
 const showConfirm = ref(false)
 
-const openPasswordModal = () => {
-  pwForm.value = { current: '', newPw: '', confirm: '' }
+const openPasswordModal  = () => {
+  pwForm.value   = { current: '', newPw: '', confirm: '' }
   pwErrors.value = {}
   pwSuccess.value = false
   showPasswordModal.value = true
 }
-
 const closePasswordModal = () => { showPasswordModal.value = false }
 
 const validatePw = () => {
   pwErrors.value = {}
   if (!pwForm.value.current) pwErrors.value.current = 'Current password is required'
-  if (!pwForm.value.newPw) pwErrors.value.newPw = 'New password is required'
+  if (!pwForm.value.newPw)   pwErrors.value.newPw   = 'New password is required'
   else if (pwForm.value.newPw.length < 8) pwErrors.value.newPw = 'Must be at least 8 characters'
   if (!pwForm.value.confirm) pwErrors.value.confirm = 'Please confirm your new password'
   else if (pwForm.value.newPw !== pwForm.value.confirm) pwErrors.value.confirm = 'Passwords do not match'
@@ -92,24 +143,29 @@ const validatePw = () => {
 const handleChangePassword = async () => {
   if (!validatePw()) return
   pwSaving.value = true
-  await new Promise(r => setTimeout(r, 1500))
-  pwSaving.value = false
-  pwSuccess.value = true
-  setTimeout(() => { pwSuccess.value = false; closePasswordModal() }, 2000)
+  try {
+    await authStore.changePassword(pwForm.value.current, pwForm.value.newPw)
+    pwSuccess.value = true
+    setTimeout(() => { pwSuccess.value = false; closePasswordModal() }, 2000)
+  } catch (err) {
+    pwErrors.value.current = err.message  // shows error under current password field
+  } finally {
+    pwSaving.value = false
+  }
 }
 
 const pwStrength = computed(() => {
   const pw = pwForm.value.newPw
   if (!pw) return 0
   let score = 0
-  if (pw.length >= 8) score++
-  if (/[A-Z]/.test(pw)) score++
-  if (/[0-9]/.test(pw)) score++
+  if (pw.length >= 8)          score++
+  if (/[A-Z]/.test(pw))        score++
+  if (/[0-9]/.test(pw))        score++
   if (/[^A-Za-z0-9]/.test(pw)) score++
   return score
 })
 
-const pwStrengthLabel = computed(() => ['', 'Weak', 'Fair', 'Good', 'Strong'][pwStrength.value])
+const pwStrengthLabel  = computed(() => ['', 'Weak', 'Fair', 'Good', 'Strong'][pwStrength.value])
 const pwStrengthColors = ['', '#f87171', '#fb923c', '#facc15', '#22c55e']
 </script>
 
@@ -137,7 +193,7 @@ const pwStrengthColors = ['', '#f87171', '#fb923c', '#facc15', '#22c55e']
         <!-- Avatar -->
         <div class="avatar-wrap" style="animation: logoFloat 3s ease-in-out infinite">
           <button @click="triggerAvatarUpload" class="avatar-btn" :class="{ editable: isEditing }">
-            <img v-if="avatarPreview" :src="avatarPreview" alt="Avatar" class="avatar-img" />
+            <img v-if="avatarSrc" :src="avatarSrc" alt="Avatar" class="avatar-img" />
             <div v-else class="avatar-initials">{{ initials }}</div>
           </button>
           <button v-if="isEditing" @click="triggerAvatarUpload" class="avatar-edit-btn">
@@ -169,7 +225,6 @@ const pwStrengthColors = ['', '#f87171', '#fb923c', '#facc15', '#22c55e']
           <div v-for="field in [
             { key: 'fullName', label: 'Full Name', type: 'text', placeholder: 'Your full name' },
             { key: 'email', label: 'Email', type: 'email', placeholder: 'you@example.com' },
-            { key: 'phone', label: 'Phone Number', type: 'tel', placeholder: 'Your phone number' },
           ]" :key="field.key" class="field">
             <label>{{ field.label }}</label>
             <input
@@ -212,7 +267,7 @@ const pwStrengthColors = ['', '#f87171', '#fb923c', '#facc15', '#22c55e']
             </svg>
           </button>
 
-          <button class="menu-item menu-item--red">
+          <button @click="handleSignOut" class="menu-item menu-item--red">
             <span class="menu-icon menu-icon--red">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -237,10 +292,6 @@ const pwStrengthColors = ['', '#f87171', '#fb923c', '#facc15', '#22c55e']
             <div class="drag-handle" />
 
             <div class="modal-header">
-              <div>
-                <h3 class="modal-title">Change Password</h3>
-                <p class="modal-subtitle">Choose a strong new password</p>
-              </div>
               <button @click="closePasswordModal" class="close-btn">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
