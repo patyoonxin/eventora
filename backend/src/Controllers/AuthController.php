@@ -208,7 +208,7 @@ class AuthController
     }
 
     // Update to new password
-    User::updatePassword($user['id'], $data['new_password']);
+    User::updatePassword($user['email'], $data['new_password']);
 
     $response->getBody()->write(json_encode(['message' => 'Password updated successfully']));
     return $response->withHeader('Content-Type', 'application/json');
@@ -298,6 +298,93 @@ public function resetPassword(Request $request, Response $response): Response
     $response->getBody()->write(json_encode(['message' => 'Password reset successfully']));
     return $response->withHeader('Content-Type', 'application/json');
 }
+
+// 4. GET ALL USERS (ADMIN ONLY - GET /api/admin/users)
+public function getAllUsers(Request $request, Response $response): Response
+{
+    $db = \App\Models\Database::connect();
+    $stmt = $db->query("SELECT id, name, email, role, profile_picture, created_at FROM users ORDER BY id ASC");
+    $users = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+    $config  = require __DIR__ . '/../../config/settings.php';
+    $baseUrl = rtrim($config['app_url'] ?? 'http://localhost', '/');
+
+    $users = array_map(function($u) use ($baseUrl) {
+        $u['profile_picture'] = $u['profile_picture'] ? $baseUrl . '/' . $u['profile_picture'] : null;
+        return $u;
+    }, $users);
+
+    $response->getBody()->write(json_encode($users));
+    return $response->withHeader('Content-Type', 'application/json');
+}
+
+public function createUser(Request $request, Response $response): Response
+{
+    $data = $request->getParsedBody();
+
+    if (empty($data['name']) || empty($data['email']) || empty($data['role'])) {
+        $response->getBody()->write(json_encode(['error' => 'Name, email and role are required']));
+        return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
+    }
+
+    if (User::findByEmail($data['email'])) {
+        $response->getBody()->write(json_encode(['error' => 'Email already exists']));
+        return $response->withStatus(409)->withHeader('Content-Type', 'application/json');
+    }
+
+    $allowedRoles = ['attendee', 'organiser', 'faculty_admin'];
+    if (!in_array($data['role'], $allowedRoles)) {
+        $response->getBody()->write(json_encode(['error' => 'Invalid role']));
+        return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
+    }
+
+    // Default password — user should reset via forgot password
+    $success = User::create([
+        'name'     => $data['name'],
+        'email'    => $data['email'],
+        'password' => 'EventOra2024!',
+        'role'     => $data['role'],
+    ]);
+
+    if ($success) {
+        $response->getBody()->write(json_encode(['message' => 'User created successfully']));
+        return $response->withStatus(201)->withHeader('Content-Type', 'application/json');
+    }
+
+    $response->getBody()->write(json_encode(['error' => 'Failed to create user']));
+    return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
+}
+
+public function updateUserRole(Request $request, Response $response, array $args): Response
+{
+    $id   = (int) $args['id'];
+    $data = $request->getParsedBody();
+    $role = $data['role'] ?? '';
+
+    $allowedRoles = ['attendee', 'organiser', 'faculty_admin'];
+    if (!in_array($role, $allowedRoles)) {
+        $response->getBody()->write(json_encode(['error' => 'Invalid role']));
+        return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
+    }
+
+    $db = \App\Models\Database::connect();
+    $db->prepare("UPDATE users SET role = ? WHERE id = ?")->execute([$role, $id]);
+
+    $response->getBody()->write(json_encode(['message' => 'Role updated']));
+    return $response->withHeader('Content-Type', 'application/json');
+}
+
+public function deleteUser(Request $request, Response $response, array $args): Response
+{
+    $id = (int) $args['id'];
+
+    $db = \App\Models\Database::connect();
+    $db->prepare("DELETE FROM users WHERE id = ?")->execute([$id]);
+
+    $response->getBody()->write(json_encode(['message' => 'User deleted']));
+    return $response->withHeader('Content-Type', 'application/json');
+}
+
 
     // ─── PRIVATE HELPER ───────────────────────────────────────────────────────
 

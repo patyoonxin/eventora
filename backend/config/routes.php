@@ -35,6 +35,7 @@ return function (App $app) {
 
 
     // PROTECTED ROUTES (Locked Down behind our JWT Check)
+    
     $app->get('/api/users/past-events', [EventController::class, 'getPastEvents'])
         ->add(new JwtAuthMiddleware()); // This line locks the route down
 
@@ -53,8 +54,22 @@ return function (App $app) {
     $app->post('/api/society/events/{id}/cancel', [EventController::class, 'cancel'])
         ->add(new JwtAuthMiddleware());
 
+    // Admin user management
     $app->get('/api/admin/pending-events', [EventController::class, 'getPendingEvents'])
         ->add(new JwtAuthMiddleware());
+
+    $app->get('/api/admin/users', [AuthController::class, 'getAllUsers'])
+    ->add(new JwtAuthMiddleware());
+
+    $app->post('/api/admin/users', [AuthController::class, 'createUser'])
+        ->add(new JwtAuthMiddleware());
+
+    $app->put('/api/admin/users/{id}/role', [AuthController::class, 'updateUserRole'])
+        ->add(new JwtAuthMiddleware());
+
+    $app->delete('/api/admin/users/{id}', [AuthController::class, 'deleteUser'])
+        ->add(new JwtAuthMiddleware());
+    
 
     $app->get('/api/profile', [AuthController::class, 'getProfile'])
         ->add(new JwtAuthMiddleware());

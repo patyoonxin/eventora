@@ -1,18 +1,18 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { useAuthStore } from '@/stores/auth'
 
-const users = ref([
-  { id: 1, name: 'Alex Organiser', email: 'alex@utm.my', role: 'organiser', profile_picture: null, joined: '2024-01-15' },
-  { id: 2, name: 'Siti Student', email: 'siti@utm.my', role: 'attendee', profile_picture: null, joined: '2024-02-20' },
-  { id: 3, name: 'Admin User', email: 'admin@utm.my', role: 'faculty_admin', profile_picture: null, joined: '2024-01-01' },
-])
+const authStore = useAuthStore()
+const API_BASE = import.meta.env.VITE_API_BASE_URL
 
+const users = ref([])
+const loading = ref(true)
 const roles = ['attendee', 'organiser', 'faculty_admin']
 const roleLabels = { attendee: 'Attendee', organiser: 'Organiser', faculty_admin: 'Faculty Admin' }
 const roleColors = {
-  attendee:     { bg: '#eff6ff', text: '#1d4ed8', dot: '#3b82f6' },
-  organiser:    { bg: '#f0fdf4', text: '#15803d', dot: '#22c55e' },
-  faculty_admin:{ bg: '#faf5ff', text: '#7c3aed', dot: '#a855f7' },
+  attendee:      { bg: '#eff6ff', text: '#1d4ed8', dot: '#3b82f6' },
+  organiser:     { bg: '#f0fdf4', text: '#15803d', dot: '#22c55e' },
+  faculty_admin: { bg: '#faf5ff', text: '#7c3aed', dot: '#a855f7' },
 }
 
 const search = ref('')
@@ -24,6 +24,29 @@ const editingRole = ref(false)
 const tempRole = ref('')
 const newUser = ref({ name: '', email: '', role: 'attendee' })
 const newUserErrors = ref({})
+const errorMsg = ref('')
+
+const headers = () => ({
+  'Content-Type': 'application/json',
+  Authorization: `Bearer ${authStore.token}`,
+  Accept: 'application/json',
+})
+
+// ── Fetch all users ──────────────────────────────────────────────
+const fetchUsers = async () => {
+  loading.value = true
+  try {
+    const res = await fetch(`${API_BASE}/api/admin/users`, { headers: headers() })
+    const data = await res.json()
+    users.value = data.map(u => ({ ...u, joined: u.created_at?.split('T')[0] ?? u.created_at?.split(' ')[0] ?? '' }))
+  } catch (e) {
+    errorMsg.value = 'Failed to load users.'
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(fetchUsers)
 
 const filteredUsers = computed(() =>
   users.value.filter(u =>
@@ -34,36 +57,82 @@ const filteredUsers = computed(() =>
 )
 
 const initials = (name) => name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
-
 const selectUser = (user) => { selectedUser.value = { ...user }; editingRole.value = false; tempRole.value = user.role }
 const startEditRole = () => { tempRole.value = selectedUser.value.role; editingRole.value = true }
-const saveRole = () => {
-  const idx = users.value.findIndex(u => u.id === selectedUser.value.id)
-  if (idx !== -1) { users.value[idx].role = tempRole.value; selectedUser.value = { ...users.value[idx] } }
-  editingRole.value = false
+
+// ── Update role ──────────────────────────────────────────────────
+const saveRole = async () => {
+  try {
+    const res = await fetch(`${API_BASE}/api/admin/users/${selectedUser.value.id}/role`, {
+      method: 'PUT',
+      headers: headers(),
+      body: JSON.stringify({ role: tempRole.value }),
+    })
+    if (!res.ok) throw new Error()
+    const idx = users.value.findIndex(u => u.id === selectedUser.value.id)
+    if (idx !== -1) { users.value[idx].role = tempRole.value; selectedUser.value = { ...users.value[idx] } }
+    editingRole.value = false
+  } catch {
+    errorMsg.value = 'Failed to update role.'
+  }
 }
+
 const cancelEditRole = () => { editingRole.value = false }
+
+// ── Delete user ──────────────────────────────────────────────────
 const confirmDelete = (user) => { userToDelete.value = user; showDeleteConfirm.value = true }
-const deleteUser = () => {
-  users.value = users.value.filter(u => u.id !== userToDelete.value.id)
-  if (selectedUser.value?.id === userToDelete.value.id) selectedUser.value = null
-  showDeleteConfirm.value = false; userToDelete.value = null
+const deleteUser = async () => {
+  try {
+    const res = await fetch(`${API_BASE}/api/admin/users/${userToDelete.value.id}`, {
+      method: 'DELETE',
+      headers: headers(),
+    })
+    if (!res.ok) throw new Error()
+    users.value = users.value.filter(u => u.id !== userToDelete.value.id)
+    if (selectedUser.value?.id === userToDelete.value.id) selectedUser.value = null
+    showDeleteConfirm.value = false
+    userToDelete.value = null
+  } catch {
+    errorMsg.value = 'Failed to delete user.'
+  }
 }
+
+// ── Add user ─────────────────────────────────────────────────────
 const validateNewUser = () => {
   newUserErrors.value = {}
   if (!newUser.value.name.trim()) newUserErrors.value.name = 'Name is required'
   if (!newUser.value.email.trim()) newUserErrors.value.email = 'Email is required'
   else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newUser.value.email)) newUserErrors.value.email = 'Invalid email'
-  else if (users.value.find(u => u.email === newUser.value.email)) newUserErrors.value.email = 'Email already exists'
   return Object.keys(newUserErrors.value).length === 0
 }
-const addUser = () => {
+
+const addUser = async () => {
   if (!validateNewUser()) return
-  const id = Math.max(...users.value.map(u => u.id)) + 1
-  users.value.push({ id, name: newUser.value.name, email: newUser.value.email, role: newUser.value.role, profile_picture: null, joined: new Date().toISOString().split('T')[0] })
-  showAddModal.value = false; newUser.value = { name: '', email: '', role: 'attendee' }; newUserErrors.value = {}
+  try {
+    const res = await fetch(`${API_BASE}/api/admin/users`, {
+      method: 'POST',
+      headers: headers(),
+      body: JSON.stringify(newUser.value),
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      newUserErrors.value.email = data.error || 'Failed to create user'
+      return
+    }
+    await fetchUsers()
+    showAddModal.value = false
+    newUser.value = { name: '', email: '', role: 'attendee' }
+    newUserErrors.value = {}
+  } catch {
+    newUserErrors.value.email = 'Something went wrong.'
+  }
 }
-const closeAddModal = () => { showAddModal.value = false; newUser.value = { name: '', email: '', role: 'attendee' }; newUserErrors.value = {} }
+
+const closeAddModal = () => {
+  showAddModal.value = false
+  newUser.value = { name: '', email: '', role: 'attendee' }
+  newUserErrors.value = {}
+}
 </script>
 
 <template>
@@ -95,25 +164,30 @@ const closeAddModal = () => { showAddModal.value = false; newUser.value = { name
     <div class="body">
 
       <!-- List panel -->
-      <div class="list-panel">
-        <div v-if="filteredUsers.length === 0" class="empty">No users found.</div>
-        <div
-          v-for="user in filteredUsers" :key="user.id"
-          @click="selectUser(user)"
-          :class="['user-row', selectedUser?.id === user.id && 'user-row--active']"
-        >
-          <div class="avatar" :style="{ background: `linear-gradient(135deg, ${roleColors[user.role].dot}, #3b82f6)` }">
-            {{ initials(user.name) }}
-          </div>
-          <div class="user-text">
-            <p class="uname">{{ user.name }}</p>
-            <p class="uemail">{{ user.email }}</p>
-          </div>
-          <span class="badge" :style="{ background: roleColors[user.role].bg, color: roleColors[user.role].text }">
-            {{ roleLabels[user.role] }}
-          </span>
-        </div>
-      </div>
+<div class="list-panel">
+  <div v-if="filteredUsers.length === 0" class="empty">No users found.</div>
+  <div
+    v-for="user in filteredUsers" :key="user.id"
+    @click="selectUser(user)"
+    :class="['user-row', selectedUser?.id === user.id && 'user-row--active']"
+  >
+    <div v-if="user.profile_picture"
+      style="width:40px; height:40px; border-radius:9999px; overflow:hidden; flex-shrink:0;">
+      <img :src="user.profile_picture" alt="Avatar" style="width:100%; height:100%; object-fit:cover;" />
+    </div>
+    <div v-else class="avatar" :style="{ background: `linear-gradient(135deg, ${roleColors[user.role].dot}, #3b82f6)` }">
+      {{ initials(user.name) }}
+    </div>
+
+    <div class="user-text">
+      <p class="uname">{{ user.name }}</p>
+      <p class="uemail">{{ user.email }}</p>
+    </div>
+    <span class="badge" :style="{ background: roleColors[user.role].bg, color: roleColors[user.role].text }">
+      {{ roleLabels[user.role] }}
+    </span>
+  </div>
+</div>
 
       <!-- Detail panel -->
       <div class="detail-panel">
@@ -131,16 +205,22 @@ const closeAddModal = () => { showAddModal.value = false; newUser.value = { name
         <div v-else>
           <!-- Avatar + name -->
           <div class="detail-top">
-            <div class="detail-avatar" :style="{ background: `linear-gradient(135deg, ${roleColors[selectedUser.role].dot}, #3b82f6)` }">
-              {{ initials(selectedUser.name) }}
+            <!-- ✅ Show real avatar if available, else initials -->
+            <div v-if="selectedUser.profile_picture" 
+              style="width:64px; height:64px; border-radius:9999px; overflow:hidden; box-shadow: 0 4px 14px rgba(124,58,237,0.25);">
+              <img :src="selectedUser.profile_picture" alt="Avatar" style="width:100%; height:100%; object-fit:cover;" />
             </div>
-            <p class="detail-name">{{ selectedUser.name }}</p>
-            <p class="detail-email">{{ selectedUser.email }}</p>
-            <span class="badge badge--lg" :style="{ background: roleColors[selectedUser.role].bg, color: roleColors[selectedUser.role].text }">
-              <span class="badge-dot" :style="{ background: roleColors[selectedUser.role].dot }" />
-              {{ roleLabels[selectedUser.role] }}
-            </span>
+          <div v-else class="detail-avatar" :style="{ background: `linear-gradient(135deg, ${roleColors[selectedUser.role].dot}, #3b82f6)` }">
+            {{ initials(selectedUser.name) }}
           </div>
+
+          <p class="detail-name">{{ selectedUser.name }}</p>
+          <p class="detail-email">{{ selectedUser.email }}</p>
+          <span class="badge badge--lg" :style="{ background: roleColors[selectedUser.role].bg, color: roleColors[selectedUser.role].text }">
+            <span class="badge-dot" :style="{ background: roleColors[selectedUser.role].dot }" />
+            {{ roleLabels[selectedUser.role] }}
+          </span>
+        </div>
 
           <div class="divider" />
 
@@ -148,7 +228,14 @@ const closeAddModal = () => { showAddModal.value = false; newUser.value = { name
           <div class="info-rows">
             <div class="info-row"><span class="info-label">User ID</span><span class="info-val">#{{ selectedUser.id }}</span></div>
             <div class="info-row"><span class="info-label">Joined</span><span class="info-val">{{ selectedUser.joined }}</span></div>
-            <div class="info-row"><span class="info-label">Profile Pic</span><span class="info-val">{{ selectedUser.profile_picture ?? 'Not set' }}</span></div>
+            <div class="info-row">
+              <span class="info-label">Profile Pic</span>
+              <span class="info-val">
+                <img v-if="selectedUser.profile_picture" :src="selectedUser.profile_picture" 
+                  style="width:28px; height:28px; border-radius:9999px; object-fit:cover;" />
+                <span v-else>Not set</span>
+              </span>
+            </div>
           </div>
 
           <div class="divider" />
