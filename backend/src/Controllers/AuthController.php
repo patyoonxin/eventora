@@ -342,7 +342,7 @@ public function createUser(Request $request, Response $response): Response
     $success = User::create([
         'name'     => $data['name'],
         'email'    => $data['email'],
-        'password' => 'EventOra2024!',
+        'password' => 'EventOra2026!',
         'role'     => $data['role'],
     ]);
 
