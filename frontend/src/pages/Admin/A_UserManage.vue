@@ -17,6 +17,7 @@ const roleColors = {
 
 const search = ref('')
 const selectedUser = ref(null)
+const showDrawer = ref(false)
 const showAddModal = ref(false)
 const showDeleteConfirm = ref(false)
 const userToDelete = ref(null)
@@ -32,7 +33,6 @@ const headers = () => ({
   Accept: 'application/json',
 })
 
-// ── Fetch all users ──────────────────────────────────────────────
 const fetchUsers = async () => {
   loading.value = true
   try {
@@ -57,10 +57,17 @@ const filteredUsers = computed(() =>
 )
 
 const initials = (name) => name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
-const selectUser = (user) => { selectedUser.value = { ...user }; editingRole.value = false; tempRole.value = user.role }
+
+const selectUser = (user) => {
+  selectedUser.value = { ...user }
+  editingRole.value = false
+  tempRole.value = user.role
+  showDrawer.value = true
+}
+
+const closeDrawer = () => { showDrawer.value = false }
 const startEditRole = () => { tempRole.value = selectedUser.value.role; editingRole.value = true }
 
-// ── Update role ──────────────────────────────────────────────────
 const saveRole = async () => {
   try {
     const res = await fetch(`${API_BASE}/api/admin/users/${selectedUser.value.id}/role`, {
@@ -79,7 +86,6 @@ const saveRole = async () => {
 
 const cancelEditRole = () => { editingRole.value = false }
 
-// ── Delete user ──────────────────────────────────────────────────
 const confirmDelete = (user) => { userToDelete.value = user; showDeleteConfirm.value = true }
 const deleteUser = async () => {
   try {
@@ -91,13 +97,13 @@ const deleteUser = async () => {
     users.value = users.value.filter(u => u.id !== userToDelete.value.id)
     if (selectedUser.value?.id === userToDelete.value.id) selectedUser.value = null
     showDeleteConfirm.value = false
+    showDrawer.value = false
     userToDelete.value = null
   } catch {
     errorMsg.value = 'Failed to delete user.'
   }
 }
 
-// ── Add user ─────────────────────────────────────────────────────
 const validateNewUser = () => {
   newUserErrors.value = {}
   if (!newUser.value.name.trim()) newUserErrors.value.name = 'Name is required'
@@ -160,67 +166,65 @@ const closeAddModal = () => {
       <input v-model="search" type="text" placeholder="Search users..." class="search-input" />
     </div>
 
-    <!-- Body -->
-    <div class="body">
-
-      <!-- List panel -->
-<div class="list-panel">
-  <div v-if="filteredUsers.length === 0" class="empty">No users found.</div>
-  <div
-    v-for="user in filteredUsers" :key="user.id"
-    @click="selectUser(user)"
-    :class="['user-row', selectedUser?.id === user.id && 'user-row--active']"
-  >
-    <div v-if="user.profile_picture"
-      style="width:40px; height:40px; border-radius:9999px; overflow:hidden; flex-shrink:0;">
-      <img :src="user.profile_picture" alt="Avatar" style="width:100%; height:100%; object-fit:cover;" />
-    </div>
-    <div v-else class="avatar" :style="{ background: `linear-gradient(135deg, ${roleColors[user.role].dot}, #3b82f6)` }">
-      {{ initials(user.name) }}
-    </div>
-
-    <div class="user-text">
-      <p class="uname">{{ user.name }}</p>
-      <p class="uemail">{{ user.email }}</p>
-    </div>
-    <span class="badge" :style="{ background: roleColors[user.role].bg, color: roleColors[user.role].text }">
-      {{ roleLabels[user.role] }}
-    </span>
-  </div>
-</div>
-
-      <!-- Detail panel -->
-      <div class="detail-panel">
-        <!-- Empty state -->
-        <div v-if="!selectedUser" class="detail-empty">
-          <div class="detail-empty-icon">
-            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
-          </div>
-          <p class="detail-empty-text">Select a user to view details</p>
+    <!-- List (full width now) -->
+    <div class="list-panel">
+      <div v-if="loading" class="empty">Loading...</div>
+      <div v-else-if="filteredUsers.length === 0" class="empty">No users found.</div>
+      <div
+        v-for="user in filteredUsers" :key="user.id"
+        @click="selectUser(user)"
+        class="user-row"
+      >
+        <div v-if="user.profile_picture"
+          style="width:40px; height:40px; border-radius:9999px; overflow:hidden; flex-shrink:0;">
+          <img :src="user.profile_picture" alt="Avatar" style="width:100%; height:100%; object-fit:cover;" />
         </div>
+        <div v-else class="avatar" :style="{ background: `linear-gradient(135deg, ${roleColors[user.role].dot}, #3b82f6)` }">
+          {{ initials(user.name) }}
+        </div>
+        <div class="user-text">
+          <p class="uname">{{ user.name }}</p>
+          <p class="uemail">{{ user.email }}</p>
+        </div>
+        <span class="badge" :style="{ background: roleColors[user.role].bg, color: roleColors[user.role].text }">
+          {{ roleLabels[user.role] }}
+        </span>
+      </div>
+    </div>
 
-        <!-- User detail -->
-        <div v-else>
+    <!-- User Detail Drawer -->
+    <transition name="drawer">
+      <div v-if="showDrawer && selectedUser" class="drawer-wrap">
+        <div class="drawer-bg" @click="closeDrawer" />
+        <div class="drawer">
+          <div class="drag-handle" />
+
+          <!-- Close -->
+          <div class="drawer-header">
+            <button @click="closeDrawer" class="back-btn">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <span class="drawer-title">User Details</span>
+          </div>
+
           <!-- Avatar + name -->
           <div class="detail-top">
-            <!-- ✅ Show real avatar if available, else initials -->
-            <div v-if="selectedUser.profile_picture" 
-              style="width:64px; height:64px; border-radius:9999px; overflow:hidden; box-shadow: 0 4px 14px rgba(124,58,237,0.25);">
+            <div v-if="selectedUser.profile_picture"
+              style="width:72px; height:72px; border-radius:9999px; overflow:hidden; box-shadow: 0 4px 14px rgba(124,58,237,0.25);">
               <img :src="selectedUser.profile_picture" alt="Avatar" style="width:100%; height:100%; object-fit:cover;" />
             </div>
-          <div v-else class="detail-avatar" :style="{ background: `linear-gradient(135deg, ${roleColors[selectedUser.role].dot}, #3b82f6)` }">
-            {{ initials(selectedUser.name) }}
+            <div v-else class="detail-avatar" :style="{ background: `linear-gradient(135deg, ${roleColors[selectedUser.role].dot}, #3b82f6)` }">
+              {{ initials(selectedUser.name) }}
+            </div>
+            <p class="detail-name">{{ selectedUser.name }}</p>
+            <p class="detail-email">{{ selectedUser.email }}</p>
+            <span class="badge badge--lg" :style="{ background: roleColors[selectedUser.role].bg, color: roleColors[selectedUser.role].text }">
+              <span class="badge-dot" :style="{ background: roleColors[selectedUser.role].dot }" />
+              {{ roleLabels[selectedUser.role] }}
+            </span>
           </div>
-
-          <p class="detail-name">{{ selectedUser.name }}</p>
-          <p class="detail-email">{{ selectedUser.email }}</p>
-          <span class="badge badge--lg" :style="{ background: roleColors[selectedUser.role].bg, color: roleColors[selectedUser.role].text }">
-            <span class="badge-dot" :style="{ background: roleColors[selectedUser.role].dot }" />
-            {{ roleLabels[selectedUser.role] }}
-          </span>
-        </div>
 
           <div class="divider" />
 
@@ -231,7 +235,7 @@ const closeAddModal = () => {
             <div class="info-row">
               <span class="info-label">Profile Pic</span>
               <span class="info-val">
-                <img v-if="selectedUser.profile_picture" :src="selectedUser.profile_picture" 
+                <img v-if="selectedUser.profile_picture" :src="selectedUser.profile_picture"
                   style="width:28px; height:28px; border-radius:9999px; object-fit:cover;" />
                 <span v-else>Not set</span>
               </span>
@@ -272,8 +276,7 @@ const closeAddModal = () => {
           </div>
         </div>
       </div>
-
-    </div>
+    </transition>
 
     <!-- Add User Modal -->
     <transition name="fade">
@@ -329,18 +332,16 @@ const closeAddModal = () => {
 </template>
 
 <style scoped>
-/* ── Page ── */
 .page {
   min-height: 100vh;
   background: linear-gradient(135deg, #ede9fe 0%, #dbeafe 100%);
-  padding: 28px 28px;
+  padding: 28px 16px;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
-/* ── Header ── */
 .header { display: flex; align-items: center; justify-content: space-between; }
 .header-title { font-size: 20px; font-weight: 700; color: #111827; margin: 0; }
 .header-sub { font-size: 12px; color: #6b7280; margin: 3px 0 0; }
@@ -355,7 +356,6 @@ const closeAddModal = () => {
 }
 .btn-add:hover { opacity: 0.9; transform: translateY(-1px); }
 
-/* ── Search ── */
 .search-wrap { position: relative; }
 .search-icon { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: #9ca3af; }
 .search-input {
@@ -367,13 +367,10 @@ const closeAddModal = () => {
 .search-input:focus { border-color: #7c3aed; box-shadow: 0 0 0 3px rgba(124,58,237,0.10); }
 .search-input::placeholder { color: #9ca3af; }
 
-/* ── Body ── */
-.body { display: flex; gap: 16px; align-items: flex-start; flex: 1; }
-
-/* ── List Panel ── */
+/* Full width list */
 .list-panel {
-  flex: 0 0 60%; background: #fff; border-radius: 14px;
-  box-shadow: 0 2px 16px rgba(124,58,237,0.07); overflow: hidden; min-width: 0;
+  background: #fff; border-radius: 14px;
+  box-shadow: 0 2px 16px rgba(124,58,237,0.07); overflow: hidden;
 }
 .empty { padding: 40px; text-align: center; color: #9ca3af; font-size: 13px; }
 
@@ -385,7 +382,6 @@ const closeAddModal = () => {
 }
 .user-row:last-child { border-bottom: none; }
 .user-row:hover { background: #faf5ff; }
-.user-row--active { background: #f5f3ff; border-left: 3px solid #7c3aed; padding-left: 15px; }
 
 .avatar {
   width: 40px; height: 40px; border-radius: 9999px; flex-shrink: 0;
@@ -404,41 +400,54 @@ const closeAddModal = () => {
 .badge--lg { font-size: 12px; padding: 4px 12px; }
 .badge-dot { width: 6px; height: 6px; border-radius: 9999px; flex-shrink: 0; }
 
-/* ── Detail Panel ── */
-.detail-panel {
-  flex: 0 0 calc(40% - 14px); background: #fff; border-radius: 14px;
-  box-shadow: 0 2px 16px rgba(124,58,237,0.07); overflow: hidden;
+/* ── Drawer ── */
+.drawer-wrap {
+  position: fixed; inset: 0; z-index: 50;
+  display: flex; align-items: flex-end; justify-content: center;
 }
-
-.detail-empty {
-  display: flex; flex-direction: column; align-items: center;
-  justify-content: center; gap: 10px; padding: 48px 20px;
-  color: #d1d5db; text-align: center;
+.drawer-bg {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,0.35); backdrop-filter: blur(4px);
 }
-.detail-empty-icon {
-  width: 52px; height: 52px; border-radius: 9999px; background: #f3f4f6;
-  display: flex; align-items: center; justify-content: center; color: #d1d5db;
+.drawer {
+  position: relative; z-index: 10; width: 100%;
+  background: #fff; border-radius: 24px 24px 0 0;
+  padding: 12px 20px 40px;
+  box-shadow: 0 -8px 40px rgba(0,0,0,0.12);
+  max-height: 85vh; overflow-y: auto;
 }
-.detail-empty-text { font-size: 13px; color: #9ca3af; }
-
-.detail-top { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 24px 20px 16px; text-align: center; }
-.detail-avatar {
-  width: 64px; height: 64px; border-radius: 9999px;
+.drag-handle {
+  width: 40px; height: 4px; border-radius: 9999px;
+  background: #e5e7eb; margin: 0 auto 16px;
+}
+.drawer-header {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 16px;
+}
+.drawer-title { font-size: 15px; font-weight: 700; color: #111827; }
+.back-btn {
+  padding: 6px; border-radius: 8px; background: #f3f4f6;
+  border: none; cursor: pointer; color: #6b7280;
   display: flex; align-items: center; justify-content: center;
-  font-size: 22px; font-weight: 700; color: #fff;
+}
+.back-btn:hover { background: #e5e7eb; }
+
+.detail-top { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 0 16px; text-align: center; }
+.detail-avatar {
+  width: 72px; height: 72px; border-radius: 9999px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24px; font-weight: 700; color: #fff;
   box-shadow: 0 4px 14px rgba(124,58,237,0.25);
 }
-.detail-name { font-size: 15px; font-weight: 700; color: #111827; margin: 0; }
-.detail-email { font-size: 11px; color: #6b7280; margin: 0; }
+.detail-name { font-size: 16px; font-weight: 700; color: #111827; margin: 0; }
+.detail-email { font-size: 12px; color: #6b7280; margin: 0; }
 
-.divider { height: 1px; background: #f3f4f6; margin: 0 20px; }
-
-.info-rows { display: flex; flex-direction: column; gap: 10px; padding: 14px 20px; }
+.divider { height: 1px; background: #f3f4f6; margin: 0; }
+.info-rows { display: flex; flex-direction: column; gap: 12px; padding: 16px 0; }
 .info-row { display: flex; justify-content: space-between; align-items: center; }
-.info-label { font-size: 11px; color: #9ca3af; font-weight: 500; }
-.info-val { font-size: 12px; color: #374151; font-weight: 500; }
+.info-label { font-size: 12px; color: #9ca3af; font-weight: 500; }
+.info-val { font-size: 13px; color: #374151; font-weight: 500; }
 
-.section { padding: 14px 20px; }
+.section { padding: 16px 0; }
 .section-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #9ca3af; margin: 0 0 10px; }
 
 .role-view { display: flex; align-items: center; justify-content: space-between; }
@@ -448,17 +457,13 @@ const closeAddModal = () => {
   border: 1.5px solid #e5e7eb; border-radius: 8px;
   background: #f9fafb; color: #111827; outline: none;
 }
-.role-select:focus { border-color: #7c3aed; }
 .role-btns { display: flex; gap: 6px; }
 
-/* ── Buttons ── */
 .btn-outline {
   padding: 5px 12px; font-size: 11px; font-weight: 600;
   color: #7c3aed; background: #f5f3ff; border: 1.5px solid #ddd6fe;
-  border-radius: 7px; cursor: pointer; transition: background 0.2s;
+  border-radius: 7px; cursor: pointer;
 }
-.btn-outline:hover { background: #ede9fe; }
-
 .btn-sm-ghost {
   flex: 1; padding: 7px; font-size: 12px; font-weight: 600;
   color: #6b7280; background: #f3f4f6; border: none; border-radius: 7px; cursor: pointer;
@@ -468,38 +473,29 @@ const closeAddModal = () => {
   color: #fff; background: linear-gradient(90deg, #7c3aed, #3b82f6);
   border: none; border-radius: 7px; cursor: pointer;
 }
-
 .btn-danger {
   width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px;
-  padding: 9px; font-size: 12px; font-weight: 600; color: #ef4444;
+  padding: 10px; font-size: 13px; font-weight: 600; color: #ef4444;
   background: #fef2f2; border: 1.5px solid #fecaca; border-radius: 9px; cursor: pointer;
-  transition: background 0.2s;
 }
 .btn-danger:hover { background: #fee2e2; }
-
 .btn-danger-solid {
   flex: 1; padding: 10px 18px; font-size: 13px; font-weight: 600;
   color: #fff; background: #ef4444; border: none; border-radius: 9px; cursor: pointer;
 }
-.btn-danger-solid:hover { opacity: 0.9; }
-
 .btn-primary {
   padding: 10px 18px; font-size: 13px; font-weight: 600; color: #fff;
   background: linear-gradient(90deg, #7c3aed, #3b82f6);
   border: none; border-radius: 9px; cursor: pointer;
-  box-shadow: 0 4px 14px rgba(124,58,237,0.20); transition: opacity 0.2s;
 }
-.btn-primary:hover { opacity: 0.92; }
-
 .btn-ghost {
   padding: 10px 18px; font-size: 13px; font-weight: 600;
   color: #6b7280; background: #f3f4f6; border: none; border-radius: 9px; cursor: pointer;
 }
-.btn-ghost:hover { background: #e5e7eb; }
 
-/* ── Modal ── */
+/* Modal */
 .modal-wrap {
-  position: fixed; inset: 0; z-index: 50;
+  position: fixed; inset: 0; z-index: 60;
   display: flex; align-items: center; justify-content: center; padding: 16px;
 }
 .modal-bg { position: absolute; inset: 0; background: rgba(0,0,0,0.30); backdrop-filter: blur(4px); }
@@ -513,8 +509,6 @@ const closeAddModal = () => {
 .modal-title { font-size: 15px; font-weight: 700; color: #111827; margin: 0 0 3px; }
 .modal-sub { font-size: 12px; color: #6b7280; margin: 0; }
 .close-btn { padding: 6px; border-radius: 7px; background: none; border: none; cursor: pointer; color: #9ca3af; }
-.close-btn:hover { background: #f3f4f6; color: #374151; }
-
 .modal-body { display: flex; flex-direction: column; gap: 14px; margin-bottom: 20px; }
 .field { display: flex; flex-direction: column; gap: 5px; }
 .field label { font-size: 12px; font-weight: 600; color: #374151; }
@@ -522,22 +516,24 @@ const closeAddModal = () => {
   width: 100%; padding: 9px 12px; font-size: 13px;
   border: 1.5px solid #e5e7eb; border-radius: 9px;
   background: #f9fafb; color: #111827; outline: none;
-  transition: border-color 0.2s, box-shadow 0.2s; box-sizing: border-box;
+  transition: border-color 0.2s; box-sizing: border-box;
 }
-.field-input:focus { border-color: #7c3aed; background: #fff; box-shadow: 0 0 0 3px rgba(124,58,237,0.10); }
+.field-input:focus { border-color: #7c3aed; box-shadow: 0 0 0 3px rgba(124,58,237,0.10); }
 .field-input::placeholder { color: #9ca3af; }
 .err { border-color: #ef4444 !important; }
 .err-msg { font-size: 11px; color: #ef4444; }
-
 .modal-foot { display: flex; gap: 8px; justify-content: flex-end; }
-
 .del-icon {
   width: 52px; height: 52px; border-radius: 9999px; background: #ef4444;
   display: flex; align-items: center; justify-content: center; color: #fff;
-  margin: 0 auto 14px; box-shadow: 0 6px 20px rgba(239,68,68,0.30);
+  margin: 0 auto 14px;
 }
 
-/* Transition */
+/* Transitions */
+.drawer-enter-active { transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.3s ease; }
+.drawer-leave-active { transition: transform 0.25s ease-in, opacity 0.2s ease; }
+.drawer-enter-from, .drawer-leave-to { transform: translateY(100%); opacity: 0; }
+
 .fade-enter-active, .fade-leave-active { transition: opacity 0.25s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 </style>
