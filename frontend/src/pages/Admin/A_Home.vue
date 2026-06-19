@@ -128,7 +128,7 @@ const handleEventReviewed = (id) => {
         v-else-if="upcomingEvents.length === 0"
         class="text-center py-20 text-gray-500 dark:text-gray-400 font-medium bg-gray-50 dark:bg-gray-800/40 border-2 border-dashed rounded-3xl"
       >
-        🎉 All caught up! There are no pending events requiring faculty authorization at this time. 
+        All caught up! There are no pending events requiring faculty authorization at this time. 
       </div>
 
       <div v-else>

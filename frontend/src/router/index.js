@@ -28,6 +28,11 @@ const router = createRouter({
       meta: { role: "student" },
     },
     {
+      path: "/notifications",
+      name: "Notifications",
+      component: () => import("@/components/NotificationsView.vue"),
+    },
+    {
       path: "/events/:id",
       name: "EventDetails",
       component: () => import("@/components/Student/EventDetails.vue"),
@@ -52,6 +57,12 @@ const router = createRouter({
       props: true,
     },
     {
+      path: "/student/events/:id/feedback",
+      name: "SubmitFeedback",
+      component: () => import("@/components/Student/SubmitFeedback.vue"),
+      props: true,
+    },
+    {
       path: "/login",
       name: "Login",
       component: LoginView,
@@ -68,6 +79,12 @@ const router = createRouter({
       name: "SocietyEventDetails",
       component: () => import("@/components/Society/SocietyEventDetails.vue"),
       props: true,
+    },
+    {
+      path: '/society/events/:id/participants',
+      name: 'EventParticipants',
+      component: () => import('@/components/Society/EventParticipantsView.vue'),
+      props: true
     },
     {
       path: "/society/events/:id/edit",
@@ -94,6 +111,18 @@ const router = createRouter({
       meta: { role: "society" },
     },
     {
+      path: "/society/past-events/:id",
+      name: "SocietyPastEventDetails",
+      component: () => import("@/components/Society/SocietyPastEventDetails.vue"),
+      props: true,
+    },
+    {
+      path: "/society/past-events/:id/feedback",
+      name: "SocietyEventFeedback",
+      component: () => import("@/components/Society/SocietyEventFeedbackView.vue"),
+      props: true,
+    },
+    {
       path: "/society/analytics",
       name: "S_Analytics",
       component: S_Analytics,
@@ -104,6 +133,12 @@ const router = createRouter({
       name: "A_Home",
       component: A_Home,
       meta: { role: "admin" },
+    },
+    {
+      path: "/admin/events/:id", 
+      name: "EventReviewDetails", 
+      component: () => import("@/components/Admin/EventReviewDetails.vue"), 
+      props: true, 
     },
     {
       path: "/admin/all-events",

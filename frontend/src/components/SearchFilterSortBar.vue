@@ -5,19 +5,25 @@ import { ref, onMounted, onUnmounted } from "vue";
 defineProps({
   categoriesList: {
     type: Array,
-    default: () => ["Academic", "Sports", "Cultural", "Religious"]
+    default: () => ["Academic", "Sports", "Cultural", "Religious"],
   },
   searchPlaceholder: {
     type: String,
-    default: "Search..."
-  }
+    default: "Search...",
+  },
 });
 
 // Bind models back to parent states
 const searchQuery = defineModel("searchQuery", { type: String, default: "" });
 const sortBy = defineModel("sortBy", { type: String, default: "date-asc" });
-const selectedCategories = defineModel("selectedCategories", { type: Array, default: () => [] });
-const selectedPriceTypes = defineModel("selectedPriceTypes", { type: Array, default: () => [] });
+const selectedCategories = defineModel("selectedCategories", {
+  type: Array,
+  default: () => [],
+});
+const selectedPriceTypes = defineModel("selectedPriceTypes", {
+  type: Array,
+  default: () => [],
+});
 
 // UI Dropdown Toggling Controls
 const isFilterOpen = ref(false);
@@ -31,14 +37,19 @@ const closeFilterOnOutsideClick = () => {
 };
 
 onMounted(() => window.addEventListener("click", closeFilterOnOutsideClick));
-onUnmounted(() => window.removeEventListener("click", closeFilterOnOutsideClick));
+onUnmounted(() =>
+  window.removeEventListener("click", closeFilterOnOutsideClick),
+);
 </script>
 
 <template>
-  <div class="flex flex-col sm:flex-row gap-4 items-center justify-between bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
-    
+  <div
+    class="flex flex-col sm:flex-row gap-4 items-center justify-between bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700"
+  >
     <div class="relative w-full sm:max-w-md">
-      <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+      <span
+        class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none"
+      >
         <i class="pi pi-search text-gray-400"></i>
       </span>
       <input
@@ -50,9 +61,11 @@ onUnmounted(() => window.removeEventListener("click", closeFilterOnOutsideClick)
     </div>
 
     <div class="flex items-center gap-3 w-full sm:w-auto justify-end relative">
-      
       <div class="flex items-center gap-2">
-        <label for="sort" class="text-xs font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">
+        <label
+          for="sort"
+          class="text-xs font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap"
+        >
           Sort By:
         </label>
         <select
@@ -86,11 +99,17 @@ onUnmounted(() => window.removeEventListener("click", closeFilterOnOutsideClick)
           class="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 z-50 text-left space-y-5"
         >
           <div>
-            <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2.5">
+            <label
+              class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2.5"
+            >
               Categories
             </label>
             <div class="space-y-2.5 max-h-48 overflow-y-auto pr-1">
-              <div v-for="cat in categoriesList" :key="cat" class="flex items-center gap-3">
+              <div
+                v-for="cat in categoriesList"
+                :key="cat"
+                class="flex items-center gap-3"
+              >
                 <input
                   :id="cat"
                   type="checkbox"
@@ -98,7 +117,10 @@ onUnmounted(() => window.removeEventListener("click", closeFilterOnOutsideClick)
                   v-model="selectedCategories"
                   class="w-3.5 h-3.5 rounded text-purple-600 accent-purple-600 border-gray-300 dark:border-gray-600 cursor-pointer"
                 />
-                <label :for="cat" class="text-xs text-gray-600 dark:text-gray-400 cursor-pointer select-none">
+                <label
+                  :for="cat"
+                  class="text-xs text-gray-600 dark:text-gray-400 cursor-pointer select-none"
+                >
                   {{ cat }}
                 </label>
               </div>
@@ -108,7 +130,9 @@ onUnmounted(() => window.removeEventListener("click", closeFilterOnOutsideClick)
           <hr class="border-gray-100 dark:border-gray-700" />
 
           <div>
-            <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2.5">
+            <label
+              class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2.5"
+            >
               Admission Type
             </label>
             <div class="space-y-2.5">
@@ -120,7 +144,10 @@ onUnmounted(() => window.removeEventListener("click", closeFilterOnOutsideClick)
                   v-model="selectedPriceTypes"
                   class="w-3.5 h-3.5 rounded text-purple-600 accent-purple-600 border-gray-300 dark:border-gray-600 cursor-pointer"
                 />
-                <label for="type-free" class="text-xs text-gray-600 dark:text-gray-400 cursor-pointer select-none">
+                <label
+                  for="type-free"
+                  class="text-xs text-gray-600 dark:text-gray-400 cursor-pointer select-none"
+                >
                   Free Events (RM0)
                 </label>
               </div>
@@ -132,7 +159,10 @@ onUnmounted(() => window.removeEventListener("click", closeFilterOnOutsideClick)
                   v-model="selectedPriceTypes"
                   class="w-3.5 h-3.5 rounded text-purple-600 accent-purple-600 border-gray-300 dark:border-gray-600 cursor-pointer"
                 />
-                <label for="type-paid" class="text-xs text-gray-600 dark:text-gray-400 cursor-pointer select-none">
+                <label
+                  for="type-paid"
+                  class="text-xs text-gray-600 dark:text-gray-400 cursor-pointer select-none"
+                >
                   Paid Entry Tickets
                 </label>
               </div>
@@ -140,7 +170,6 @@ onUnmounted(() => window.removeEventListener("click", closeFilterOnOutsideClick)
           </div>
         </div>
       </div>
-
     </div>
   </div>
 </template>
