@@ -33,16 +33,6 @@
         />
         <i v-else class="pi pi-user text-gray-700"></i>
       </button>
-
-      <!-- Logout button -->
-      <button
-        @click="handleLogout"
-        class="flex items-center gap-2 px-4 py-2 rounded-full bg-red-50 hover:bg-red-100 text-red-500 text-sm font-medium transition-colors duration-200"
-        title="Sign Out"
-      >
-        <i class="pi pi-sign-out"></i>
-        <span>Sign Out</span>
-      </button>
     </div>
   </nav>
 </template>
