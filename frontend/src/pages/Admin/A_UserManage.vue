@@ -181,7 +181,7 @@ const closeAddModal = () => {
 
 <template>
   <!-- <div class="page">-->
-  <div class="min-h-screen p-4 sm:p-8 max-w-7xl mx-auto">
+  <div class="min-h-screen p-4 sm:p-8 max-w-7xl mx-auto bg-[linear-gradient(135deg,#ede9fe_0%,#dbeafe_100%)]">
     <!-- Header -->
     <!--<div class="header">-->
     <div class="mb-6 text-left flex items-center justify-between pl-2">
@@ -605,6 +605,7 @@ const closeAddModal = () => {
 
 .search-wrap {
   position: relative;
+  margin-bottom: 16px;
 }
 .search-icon {
   position: absolute;
