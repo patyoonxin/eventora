@@ -1,6 +1,8 @@
 // src/stores/auth.js
-import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { defineStore } from "pinia";
+import { ref, computed } from "vue";
+import { useNotificationStore } from "./notificationStore";
+import router from "@/router";
 
 export const useAuthStore = defineStore('auth', () => {
 
@@ -32,21 +34,21 @@ export const useAuthStore = defineStore('auth', () => {
         Accept: "application/json",
       },
       body: JSON.stringify({ email, password }),
-    })
+    });
 
-    const data = await response.json()
+    const data = await response.json();
 
     if (!response.ok) {
-      throw new Error(data.error || "Invalid server credentials")
+      throw new Error(data.error || "Invalid server credentials");
     }
 
     // Update global state
-    token.value = data.token
-    user.value = data.user
+    token.value = data.token;
+    user.value = data.user;
 
     // Browser persistence matching your design
-    localStorage.setItem("eventora_token", data.token)
-    localStorage.setItem("eventora_user", JSON.stringify(data.user))
+    localStorage.setItem("eventora_token", data.token);
+    localStorage.setItem("eventora_user", JSON.stringify(data.user));
 
     await fetchProfile()
 
@@ -150,15 +152,30 @@ const changePassword = async (currentPassword, newPassword) => {
   if (!response.ok) {
     throw new Error(data.error || 'Failed to update password')
   }
+  // --- TRIGGER RECOMMENDATION NON-BLOCKING ---
+    // Do NOT use 'await' here so the user can enter the application instantly!
+    // We pass the fresh token in the Authorization Header for JwtAuthMiddleware.
+    const notifStore = useNotificationStore();
+    
+    fetch(`${API_BASE}/api/notifications/generate-recommendations`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${data.token}`,
+        "Accept": "application/json"
+      }
+    })
+    .then(() => notifStore.fetchNotifications()) // Fetch updated list once generated
+    .catch((err) => console.error("Silent recommendation check failed:", err));
+
+    return data.user; // Return the user object so the component can redirect
 }
 
   const logout = () => {
-    token.value = null
-    user.value = null
-    localStorage.removeItem("eventora_token")
-    localStorage.removeItem("eventora_user")
-  }
-
+    token.value = null;
+    user.value = null;
+    localStorage.removeItem("eventora_token");
+    localStorage.removeItem("eventora_user");
+  };
 
   return {
     token,

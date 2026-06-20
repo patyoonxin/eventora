@@ -9,16 +9,19 @@ const props = defineProps({
     type: Object,
     required: true,
   },
-  // for ticket number
   ticketNumber: {
     type: [String, Number],
     default: "",
   },
-  // for socity dashboard status badge
   status: {
     type: String,
-    default: "", 
-  }
+    default: "",
+  },
+  // ADD THIS: Allows parent components to explicitly define where to go
+  customRoute: {
+    type: String,
+    default: "",
+  },
 });
 
 const router = useRouter();
@@ -55,8 +58,8 @@ const formatDate = (dateString) => {
   const date = new Date(dateString);
   return date.toLocaleDateString("en-GB", {
     day: "numeric",
-    month: "long",
-    year: "numeric",
+    month: "short",
+    year: "2-digit",
   });
 };
 
@@ -68,25 +71,33 @@ const formatPrice = (price) => {
 
 // Compute dynamic background and text colors for the society event status pill
 const getStatusStyles = computed(() => {
-  if (!props.status) return ""
-  const state = props.status.toLowerCase()
-  
+  if (!props.status) return "";
+  const state = props.status.toLowerCase();
+
   const styles = {
-    approved: "bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-950/50 dark:text-purple-300 dark:border-purple-800",
-    pending: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800",
-    rejected: "bg-red-100 text-red-700 border-red-200 dark:bg-red-950/50 dark:text-red-300 dark:border-red-800",
-    cancelled: "bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700"
-  }
-  return styles[state] || styles.pending
-})
+    approved:
+      "bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-950/50 dark:text-purple-300 dark:border-purple-800",
+    pending:
+      "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800",
+    rejected:
+      "bg-red-100 text-red-700 border-red-200 dark:bg-red-950/50 dark:text-red-300 dark:border-red-800",
+    cancelled:
+      "bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700",
+  };
+  return styles[state] || styles.pending;
+});
 </script>
 
 <template>
   <div
     @click="
-      props.ticketNumber
-        ? router.push(`/past-events/${props.event.id}`)
-        : router.push(`/events/${props.event.id}`)
+      if (props.customRoute) {
+        router.push(props.customRoute);
+      } else {
+        props.ticketNumber
+          ? router.push(`/past-events/${props.event.id}`)
+          : router.push(`/events/${props.event.id}`);
+      }
     "
     class="cursor-pointer transition-all w-full max-w-sm"
   >
@@ -105,24 +116,15 @@ const getStatusStyles = computed(() => {
           :alt="props.event.title"
           class="w-full h-full object-cover"
         />
-        <div 
-          v-if="props.status" 
-          :class="['absolute top-4 left-4 text-xs font-bold uppercase tracking-wider px-3 py-1.5 rounded-full border backdrop-blur-sm shadow-sm', getStatusStyles]"
+        <div
+          v-if="props.status"
+          :class="[
+            'absolute top-4 left-4 text-xs font-bold uppercase tracking-wider px-3 py-1.5 rounded-full border backdrop-blur-sm shadow-sm',
+            getStatusStyles,
+          ]"
         >
           {{ props.status }}
         </div>
-
-        <!-- <div class="absolute top-4 left-4 bg-blue-400/90 backdrop-blur-sm text-white text-xs font-semibold px-4 py-1.5 rounded-full shadow-sm">
-        Recommend To You
-      </div> -->
-
-        <!-- <button 
-        type="button" 
-        class="absolute top-4 right-4 text-2xl drop-shadow-md transition-transform duration-200 hover:scale-125 focus:outline-none"
-        aria-label="Favorite event"
-      >
-        ⭐
-      </button> -->
       </div>
 
       <div class="p-6 text-left">
@@ -145,35 +147,39 @@ const getStatusStyles = computed(() => {
         </p>
 
         <div
-          class="flex items-center justify-between flex-wrap gap-y-3 pt-2 border-t border-gray-50 dark:border-gray-700"
+          class="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700 space-y-3"
         >
           <div
-            class="text-gray-400 dark:text-gray-400 text-xs font-medium flex items-center space-x-1.5"
+            class="text-gray-400 dark:text-gray-500 text-xs font-medium flex flex-wrap items-center gap-x-2 gap-y-1"
           >
-            <span class="font-semibold text-gray-600 dark:text-gray-300">{{
-              formatPrice(props.event.price)
-            }}</span>
-            <span>|</span>
+            <span class="font-bold text-gray-700 dark:text-gray-300">
+              {{ formatPrice(props.event.price) }}
+            </span>
+            <span class="text-gray-300 dark:text-gray-600">•</span>
             <span>{{ formatDate(props.event.starts_at) }}</span>
-            <span>|</span>
-            <span class="truncate max-w-[100px]">{{ props.event.venue }}</span>
+            <span class="text-gray-300 dark:text-gray-600">•</span>
+            <span class="truncate max-w-[120px]" :title="props.event.venue">
+              {{ props.event.venue }}
+            </span>
           </div>
 
-          <div class="flex items-center space-x-2">
-            <span
-              v-for="(tag, index) in tagsArray"
-              :key="index"
-              :class="[
-                'px-3 py-1 text-xs font-bold rounded-full border',
-                getTagStyles(tag),
-              ]"
-            >
-              {{ tag }}
-            </span>
+          <div class="flex items-center justify-between gap-2 flex-wrap">
+            <div class="flex flex-wrap gap-1.5">
+              <span
+                v-for="(tag, index) in tagsArray"
+                :key="index"
+                :class="[
+                  'px-2.5 py-0.5 text-xs font-bold rounded-full border whitespace-nowrap',
+                  getTagStyles(tag),
+                ]"
+              >
+                {{ tag }}
+              </span>
+            </div>
 
             <span
               v-if="props.ticketNumber"
-              class="text-sm font-semibold text-gray-400 dark:text-gray-500 tracking-wider whitespace-nowrap pl-1"
+              class="text-xs font-semibold bg-gray-50 dark:bg-gray-900 text-gray-500 dark:text-gray-400 border border-gray-100 dark:border-gray-700 rounded-lg px-2 py-1 tracking-wider whitespace-nowrap"
             >
               TKNO: {{ props.ticketNumber }}
             </span>

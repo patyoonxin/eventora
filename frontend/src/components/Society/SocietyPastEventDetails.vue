@@ -1,7 +1,10 @@
 <script setup>
 import { ref, onMounted, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { useAuthStore } from "@/stores/auth";
+import { useAuthStore } from "@/stores/auth"; 
+import axios from "axios";
+//import { Capacitor } from '@capacitor/core';
+//import { Filesystem, Directory } from '@capacitor/filesystem';
 
 const route = useRoute();
 const router = useRouter();
@@ -17,13 +20,16 @@ const participants = ref([]);
 
 onMounted(async () => {
   try {
-    // Fetch society events from your dynamic backend endpoint
-    const response = await fetch(`${API_BASE}/api/society/upcoming-events`, {
-      headers: {
-        Authorization: `Bearer ${authStore.token}`,
-        Accept: "application/json",
+    // 1. UPDATED: Changed the endpoint path from upcoming-events to past-events
+    const response = await fetch(
+      `${API_BASE}/api/society/past-events`,
+      {
+        headers: {
+          "Authorization": `Bearer ${authStore.token}`,
+          "Accept": "application/json",
+        },
       },
-    });
+    );
     const json = await response.json();
 
     if (json.status === "success") {
@@ -33,13 +39,13 @@ onMounted(async () => {
 
         await fetchParticipants();
       } else {
-        throw new Error("Event could not be found in your society inventory.");
+        throw new Error("Event could not be found in your past society inventory.");
       }
     } else {
       throw new Error(json.message);
     }
   } catch (err) {
-    errorMessage.value = err.message || "Failed to safely mount event metrics.";
+    errorMessage.value = err.message || "Failed to safely mount past event metrics.";
   } finally {
     isLoading.value = false;
   }
@@ -80,19 +86,12 @@ const tagsArray = computed(() => {
 const getTagStyles = (tag) => {
   const cleanTag = tag.toLowerCase();
   const styleMap = {
-    academic:
-      "bg-blue-100 text-blue-600 dark:bg-blue-950/40 dark:text-blue-300",
-    sports:
-      "bg-emerald-100 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300",
-    cultural:
-      "bg-amber-100 text-amber-600 dark:bg-amber-950/40 dark:text-amber-300",
-    religious:
-      "bg-purple-100 text-purple-600 dark:bg-purple-950/40 dark:text-purple-300",
+    academic: "bg-blue-100 text-blue-600 dark:bg-blue-950/40 dark:text-blue-300",
+    sports: "bg-emerald-100 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300",
+    cultural: "bg-amber-100 text-amber-600 dark:bg-amber-950/40 dark:text-amber-300",
+    religious: "bg-purple-100 text-purple-600 dark:bg-purple-950/40 dark:text-purple-300",
   };
-  return (
-    styleMap[cleanTag] ||
-    "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300"
-  );
+  return styleMap[cleanTag] || "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300";
 };
 
 const formatDate = (dateString) => {
@@ -105,32 +104,74 @@ const formatDate = (dateString) => {
   });
 };
 
-// Button Click Stubs (Frontend Actions)
-const handleEditDetails = () => {
-  router.push(`/society/events/${eventId}/edit`);
+// 2. UPDATED: Changed Edit method to navigate to the feedback sub-view
+const handleViewFeedback = () => {
+  router.push(`/society/past-events/${eventId}/feedback`);
 };
 
-const handleCancelEvent = async () => {
-  if (!confirm("Are you sure to cancel this event?")) return;
+// 3. UPDATED: Changed Cancel method into an attendance report downloader
+const isExporting = ref(false);
 
-  const response = await fetch(
-    `${API_BASE}/api/society/events/${eventId}/cancel`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${authStore.token}`,
-        "Content-Type": "application/json",
-      },
-    },
-  );
+// Helper function to convert Blob to Base64 (Required by Capacitor Filesystem)
+const blobToBase64 = (blob) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = reject;
+    reader.onload = () => resolve(reader.result);
+    reader.readAsDataURL(blob);
+  });
+};
 
-  const json = await response.json();
+const handleExportAttendance = async () => {
+  if (isExporting.value) return;
+  isExporting.value = true;
 
-  if (response.ok) {
-    alert("Event cancelled successfully");
-    event.value.status = "cancelled"; // instant UI update
-  } else {
-    alert(json.message || "Failed to cancel event");
+  try {
+    const response = await axios.get(
+      `${API_BASE}/api/society/events/${eventId}/attendance/export`,
+      {
+        headers: {
+          Authorization: `Bearer ${authStore.token}`,
+        },
+        responseType: "blob",
+      }
+    );
+    const filename = `event_${eventId}_attendance.csv`;
+
+    // --- STRATEGY SPLIT BASED ON PLATFORM ---
+    //if (Capacitor.isNativePlatform()) {
+      // 1. ANDROID / NATIVE LOGIC
+    //  const base64Data = await blobToBase64(response.data);
+      
+      // Clean the base64 string (remove the "data:text/csv;base64," prefix)
+    //   const pureBase64 = base64Data.split(',')[1];
+
+    //   const result = await Filesystem.writeFile({
+    //     path: filename,
+    //     data: pureBase64,
+    //     directory: Directory.External, // Saves to device Documents folder
+    //   });
+
+        // console.log(result.uri);
+    // } else {
+      // 2. STANDARD WEB BROWSER LOGIC
+      const url = window.URL.createObjectURL(new Blob([response.data], { type: 'text/csv' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      
+      document.body.appendChild(link);
+      link.click();
+      
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    //}
+
+  } catch (error) {
+    console.error("Export failed:", error);
+    alert("Could not export the attendance report.");
+  } finally {
+    isExporting.value = false;
   }
 };
 </script>
@@ -138,7 +179,7 @@ const handleCancelEvent = async () => {
 <template>
   <div class="min-h-screen bg-white dark:bg-gray-900 pb-24">
     <div v-if="isLoading" class="text-center py-20 text-gray-500">
-      Loading organizer metrics...
+      Loading historical records...
     </div>
     <div v-else-if="errorMessage" class="text-center py-20 text-red-500">
       {{ errorMessage }}
@@ -160,7 +201,7 @@ const handleCancelEvent = async () => {
           class="w-full h-full object-cover"
         />
         <button
-          @click="router.push('/society/home')"
+          @click="router.push('/society/history')"
           class="absolute top-5 left-5 w-12 h-12 flex items-center justify-center bg-white dark:bg-gray-800 text-gray-800 dark:text-white rounded-full shadow-lg hover:scale-105 active:scale-95 transition-all"
         >
           <span class="text-xl font-bold">←</span>
@@ -168,19 +209,13 @@ const handleCancelEvent = async () => {
       </div>
 
       <div class="text-left space-y-3 px-1">
-        <h2
-          class="text-2xl sm:text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight uppercase"
-        >
+        <h2 class="text-2xl sm:text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight uppercase">
           {{ event.title }}
         </h2>
 
-        <div
-          class="flex items-center space-x-2 text-gray-700 dark:text-gray-300"
-        >
+        <div class="flex items-center space-x-2 text-gray-700 dark:text-gray-300">
           <span class="pi pi-user text-lg"></span>
-          <span class="font-medium text-sm sm:text-base">{{
-            event.society_name
-          }}</span>
+          <span class="font-medium text-sm sm:text-base">{{ event.society_name }}</span>
         </div>
 
         <div class="flex flex-wrap gap-2 pt-1">
@@ -196,15 +231,11 @@ const handleCancelEvent = async () => {
           </span>
         </div>
 
-        <p
-          class="text-gray-400 dark:text-gray-400 text-sm sm:text-base leading-relaxed pt-2"
-        >
+        <p class="text-gray-400 dark:text-gray-400 text-sm sm:text-base leading-relaxed pt-2">
           {{ event.description || "No description provided for this event." }}
         </p>
 
-        <div
-          class="text-gray-400 dark:text-gray-500 text-xs sm:text-sm font-semibold pt-2 uppercase tracking-widest"
-        >
+        <div class="text-gray-400 dark:text-gray-500 text-xs sm:text-sm font-semibold pt-2 uppercase tracking-widest">
           <span>RM{{ parseFloat(event.price).toFixed(2) }}</span>
           <span class="mx-2">|</span>
           <span>{{ formatDate(event.starts_at) }}</span>
@@ -213,9 +244,7 @@ const handleCancelEvent = async () => {
         </div>
       </div>
 
-      <div
-        class="mt-8 bg-gray-50 dark:bg-gray-800/40 border border-gray-100 dark:border-gray-800 rounded-[2rem] py-8 px-6 text-center"
-      >
+      <div class="mt-8 bg-gray-50 dark:bg-gray-800/40 border border-gray-100 dark:border-gray-800 rounded-[2rem] py-8 px-6 text-center">
         <div class="flex flex-col items-center justify-center space-y-2">
           <span class="text-3xl pi pi-file"></span>
           <a
@@ -226,7 +255,6 @@ const handleCancelEvent = async () => {
           >
             View Supporting Document
           </a>
-
           <span v-else class="text-sm text-gray-400">
             No document uploaded
           </span>
@@ -236,25 +264,22 @@ const handleCancelEvent = async () => {
       <div class="mt-6 text-left px-2 space-y-1">
         <div class="text-sm text-gray-400 dark:text-gray-500 font-medium">
           Status:
-          <span class="font-bold text-gray-600 dark:text-gray-300 capitalize">{{
-            event.status
-          }}</span>
+          <span class="font-bold text-gray-600 dark:text-gray-300 capitalize">{{ event.status }}</span>
         </div>
+        
         <div>
           <button
-            :disabled="event.status === 'cancelled'"
-            @click="handleCancelEvent"
+            @click="handleExportAttendance"
             type="button"
-            class="text-xs font-bold text-red-400/90 dark:text-red-400/70 hover:text-red-500 underline uppercase tracking-wider bg-transparent p-0 border-none cursor-pointer"
+            class="text-xs font-bold text-purple-500 hover:text-purple-600 underline uppercase tracking-wider bg-transparent p-0 border-none cursor-pointer flex items-center gap-1"
           >
-            Cancel Event
+            <span class="pi pi-download text-[10px]"></span>
+            Export Attendance Report
           </button>
         </div>
       </div>
 
-      <div
-        class="mt-auto pt-8 pb-6 flex items-center gap-4 bg-white dark:bg-gray-900"
-      >
+      <div class="mt-auto pt-8 pb-6 flex items-center gap-4 bg-white dark:bg-gray-900">
         <div
           class="flex items-center justify-center gap-2 px-5 py-4 bg-purple-100 dark:bg-purple-950/60 rounded-2xl min-w-[110px] sm:min-w-[130px]"
         >
@@ -271,11 +296,11 @@ const handleCancelEvent = async () => {
         </div>
 
         <button
-          @click="handleEditDetails"
+          @click="handleViewFeedback"
           type="button"
-          class="flex-1 py-4 text-base sm:text-lg font-black text-white tracking-[0.2em] uppercase bg-gradient-to-r from-blue-600 to-purple-500 rounded-2xl shadow-md shadow-purple-500/20 hover:opacity-95 transition-opacity active:scale-[0.99]"
+          class="flex-1 py-4 text-base sm:text-lg font-black text-white tracking-[0.15em] uppercase bg-gradient-to-r from-purple-600 to-indigo-500 rounded-2xl shadow-md shadow-purple-500/20 hover:opacity-95 transition-opacity active:scale-[0.99]"
         >
-          Edit Details
+          View Feedback
         </button>
       </div>
     </div>

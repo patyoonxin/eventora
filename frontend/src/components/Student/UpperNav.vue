@@ -5,9 +5,21 @@
       <img src="@/assets/logo.png" alt="Logo" class="h-8 w-auto" />
     </div>
 
-    <!-- Right side -->
-    <div class="flex items-center gap-3">
-      <!-- Profile button -->
+    <div class="flex items-center gap-4">
+      <router-link
+        to="/notifications"
+        class="relative flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200"
+      >
+        <i class="pi pi-bell text-gray-700"></i>
+
+        <span
+          v-if="notifStore.unreadCount > 0"
+          class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full px-1 min-w-[18px] text-center"
+        >
+          {{ notifStore.unreadCount }}
+        </span>
+      </router-link>
+
       <button
         @click="goToProfile"
         class="flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors duration-200 overflow-hidden"
@@ -35,31 +47,33 @@
   </nav>
 </template>
 
-<script>
+<script setup>
+import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { computed } from 'vue'
+import { useNotificationStore } from "@/stores/notificationStore"
 
-export default {
-  name: 'UpperNav',
+// Initialize routers and stores
+const router = useRouter()
+const authStore = useAuthStore()
+const notifStore = useNotificationStore()
 
-  setup() {
-    const router = useRouter()
-    const authStore = useAuthStore()
+// Computed properties
+const userAvatar = computed(() => authStore.user?.profile_picture || null)
 
-    const userAvatar = computed(() => authStore.user?.profile_picture || null)
+// Lifecycle hooks
+onMounted(() => {
+  notifStore.fetchNotifications()
+})
 
-    function goToProfile() {
-      router.push('/profile')
-    }
+// Functions
+function goToProfile() {
+  router.push('/profile')
+}
 
-    function handleLogout() {
-      authStore.logout()
-      router.push('/login')
-    }
-
-    return { userAvatar, goToProfile, handleLogout }
-  }
+function handleLogout() {
+  authStore.logout()
+  router.push('/login')
 }
 </script>
 

@@ -13,6 +13,11 @@ class JwtAuthMiddleware
 {
     public function __invoke(Request $request, Handler $handler): Response
     {
+
+        // 🔴 DEBUG LOGS (PUT HERE)
+    error_log("==== JWT MIDDLEWARE HIT ====");
+    error_log("METHOD: " . $request->getMethod());
+    error_log("AUTH HEADER: " . $request->getHeaderLine('Authorization'));
         // Get Authorization header
         $authHeader = $request->getHeaderLine('Authorization');
 
