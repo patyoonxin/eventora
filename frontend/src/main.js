@@ -10,4 +10,11 @@ const app = createApp(App)
 app.use(createPinia())
 app.use(router)
 
+const theme = localStorage.getItem('theme')
+if (theme === 'dark') {
+  document.documentElement.classList.add('dark')
+} else {
+  document.documentElement.classList.remove('dark')
+}
+
 app.mount('#app')

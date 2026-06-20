@@ -38,7 +38,9 @@ return function (App $app) {
     $app->get('/api/events', [EventController::class, 'index']);
     $app->get('/api/events/{id}/participants/count', [EventController::class, 'getParticipantCount']);
 
+
     // PROTECTED ROUTES (Locked Down behind our JWT Check)
+    
     $app->get('/api/users/past-events', [EventController::class, 'getPastEvents'])
         ->add(new JwtAuthMiddleware());
 
@@ -81,6 +83,7 @@ return function (App $app) {
     $app->get('/api/society/analytics', [AnalyticsController::class, 'getSocietyAnalytics'])
         ->add(new JwtAuthMiddleware());
 
+    // Admin user management
     $app->get('/api/admin/pending-events', [EventController::class, 'getPendingEvents'])
         ->add(new JwtAuthMiddleware());
 
@@ -114,4 +117,33 @@ return function (App $app) {
     $app->post('/api/notifications/generate-recommendations', [NotificationController::class, 'generateRecommendations'])
         ->add(new JwtAuthMiddleware());
 
+
+    $app->get('/api/admin/users', [AuthController::class, 'getAllUsers'])
+    ->add(new JwtAuthMiddleware());
+
+    $app->post('/api/admin/users', [AuthController::class, 'createUser'])
+        ->add(new JwtAuthMiddleware());
+
+    $app->put('/api/admin/users/{id}/role', [AuthController::class, 'updateUserRole'])
+        ->add(new JwtAuthMiddleware());
+
+    $app->delete('/api/admin/users/{id}', [AuthController::class, 'deleteUser'])
+        ->add(new JwtAuthMiddleware());
+    
+
+    $app->get('/api/profile', [AuthController::class, 'getProfile'])
+        ->add(new JwtAuthMiddleware());
+
+    $app->put('/api/profile', [AuthController::class, 'updateProfile'])
+        ->add(new JwtAuthMiddleware());
+
+    $app->post('/api/profile/avatar', [AuthController::class, 'uploadAvatar'])
+        ->add(new JwtAuthMiddleware());
+
+    $app->put('/api/profile/password', [AuthController::class, 'changePassword'])
+    ->add(new JwtAuthMiddleware());
+
+    $app->post('/api/forgot-password', [AuthController::class, 'forgotPassword']);
+    
+    $app->post('/api/reset-password', [AuthController::class, 'resetPassword']);
 };

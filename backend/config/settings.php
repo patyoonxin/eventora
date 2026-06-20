@@ -1,5 +1,6 @@
 <?php
 return [
+    'app_url' => 'http://localhost:8000',    
     'db' => [
         'host'      => $_ENV['DB_HOST'] ?? '127.0.0.1',
         'database'  => $_ENV['DB_NAME'] ?? 'eventora_db',

@@ -151,7 +151,7 @@ const handleForgotPassword = () => {
               <button
                 type="button"
                 class="text-xs sm:text-sm font-semibold text-purple-600 dark:text-purple-300 hover:text-purple-700 dark:hover:text-purple-200 transition-all duration-300 hover:translate-x-0.5 p-0 bg-none border-none cursor-pointer"
-                @click="handleForgotPassword"
+                @click="$router.push('/forgot-password')"
               >
                 Forgot Password?
               </button>
