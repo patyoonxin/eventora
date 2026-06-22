@@ -86,7 +86,7 @@ const handleForgotPassword = () => {
 
     <!-- Login Card -->
     <div
-      class="relative z-10 w-full max-w-sm animate-slide-up"
+      class="relative z-10 w-full max-w-md sm:max-w-lg animate-slide-up"
       style="animation: slideUp 0.6s ease-out"
     >
       <div
@@ -101,7 +101,7 @@ const handleForgotPassword = () => {
             <img
               src="@/assets/logo.png"
               alt="EventOra Logo"
-              class="w-42 sm:w-50 h-auto object-contain"
+              class="w-40 sm:w-48 h-auto object-contain"
               style="filter: drop-shadow(0 10px 25px rgba(124, 58, 237, 0.1))"
             />
           </div>

@@ -102,9 +102,9 @@ const filteredAndSortedEvents = computed(() => {
 </script>
 
 <template>
-  <div class="min-h-screen p-4 sm:p-8 max-w-7xl mx-auto">
-    <div class="mb-4 text-left">
-      <h2 class="text-3xl font-extrabold text-gray-900 dark:text-white pl-5">
+  <div class="min-h-screen px-4 sm:px-6 lg:px-8 py-8 bg-white dark:bg-gray-900">
+    <div class="max-w-7xl mx-auto mb-4 text-left">
+      <h2 class="text-3xl font-extrabold text-gray-900 dark:text-white">
         Explore Upcoming Events
       </h2>
     </div>

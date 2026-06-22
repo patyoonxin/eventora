@@ -87,11 +87,12 @@ const filteredAndSortedPastEvents = computed(() => {
 </script>
 
 <template>
-  <div class="min-h-screen p-4 sm:p-8 max-w-7xl mx-auto">
-    <div class="mb-6 text-left flex items-center justify-between pl-2">
-      <h2 class="text-3xl font-extrabold text-gray-900 dark:text-white">
-        Your Past Events
-      </h2>
+  <div class="min-h-screen px-4 sm:px-6 lg:px-8 py-8 bg-white dark:bg-gray-900">
+    <div class="max-w-7xl mx-auto">
+      <div class="mb-6 text-left flex items-center justify-between pl-2">
+        <h2 class="text-3xl font-extrabold text-gray-900 dark:text-white">
+          Your Past Events
+        </h2>
     </div>
 
     <div class="space-y-6">
@@ -140,4 +141,5 @@ const filteredAndSortedPastEvents = computed(() => {
 
     </div>
   </div>
+</div>
 </template>

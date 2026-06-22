@@ -1035,6 +1035,97 @@ class EventController
         }
     }
 
+    public function checkInTicket(Request $request, Response $response, array $args): Response
+    {
+        try {
+            $db = \App\Models\Database::connect();
+            $user = $request->getAttribute('user');
+            $eventId = (int)$args['id'];
+            $payload = $request->getParsedBody();
+
+            $ticketId = isset($payload['ticket_id']) ? (int)$payload['ticket_id'] : null;
+            $qrPayload = isset($payload['qr_payload']) ? trim($payload['qr_payload']) : '';
+
+            if (!$ticketId && $qrPayload) {
+                if (preg_match('/ticket\/(\d+)/', $qrPayload, $matches)) {
+                    $ticketId = (int)$matches[1];
+                }
+            }
+
+            if (!$ticketId) {
+                return $this->errorResponse($response, 'Ticket ID or QR payload is required', 400);
+            }
+
+            // Validate organiser owns the event
+            $societyStmt = $db->prepare("SELECT id FROM societies WHERE advisor_id = :user_id LIMIT 1");
+            $societyStmt->execute(['user_id' => $user->id]);
+            $society = $societyStmt->fetch(\PDO::FETCH_ASSOC);
+
+            if (!$society) {
+                return $this->errorResponse($response, 'Unauthorized: you are not assigned to any society', 403);
+            }
+
+            $eventStmt = $db->prepare("SELECT id, society_id FROM events WHERE id = :event_id AND society_id = :society_id LIMIT 1");
+            $eventStmt->execute([
+                'event_id' => $eventId,
+                'society_id' => $society['id'],
+            ]);
+            $event = $eventStmt->fetch(\PDO::FETCH_ASSOC);
+
+            if (!$event) {
+                return $this->errorResponse($response, 'Unauthorized: this event is not managed by your society', 403);
+            }
+
+            $ticketStmt = $db->prepare("SELECT t.id, t.status, t.event_id, u.name AS user_name, u.email AS user_email FROM tickets t JOIN users u ON t.user_id = u.id WHERE t.id = :ticket_id AND t.event_id = :event_id LIMIT 1");
+            $ticketStmt->execute([
+                'ticket_id' => $ticketId,
+                'event_id' => $eventId,
+            ]);
+            $ticket = $ticketStmt->fetch(\PDO::FETCH_ASSOC);
+
+            if (!$ticket) {
+                return $this->errorResponse($response, 'Ticket not found for this event', 404);
+            }
+
+            if ($ticket['status'] !== 'valid') {
+                return $this->errorResponse($response, 'Ticket is not valid for check-in', 400);
+            }
+
+            $checkInExists = $db->prepare("SELECT id FROM check_ins WHERE ticket_id = :ticket_id LIMIT 1");
+            $checkInExists->execute(['ticket_id' => $ticketId]);
+            if ($checkInExists->fetch()) {
+                return $this->errorResponse($response, 'Ticket has already been checked in', 409);
+            }
+
+            $db->beginTransaction();
+            $updateTicket = $db->prepare("UPDATE tickets SET status = 'used' WHERE id = :ticket_id");
+            $updateTicket->execute(['ticket_id' => $ticketId]);
+
+            $insertCheckIn = $db->prepare("INSERT INTO check_ins (ticket_id, checked_in_at) VALUES (:ticket_id, NOW())");
+            $insertCheckIn->execute(['ticket_id' => $ticketId]);
+            $db->commit();
+
+            $response->getBody()->write(json_encode([
+                'status' => 'success',
+                'message' => 'Student checked in successfully',
+                'ticket' => [
+                    'ticket_id' => $ticket['id'],
+                    'event_id' => $eventId,
+                    'student_name' => $ticket['user_name'],
+                    'student_email' => $ticket['user_email'],
+                    'checked_in_at' => date('Y-m-d H:i:s'),
+                ],
+            ]));
+
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+        } catch (\Exception $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+            return $this->errorResponse($response, $e->getMessage(), 500);
+        }
+    }
+
     public function getParticipantCount(Request $request, Response $response, array $args): Response
     {
         try {
@@ -1046,6 +1137,7 @@ class EventController
             FROM tickets t
             JOIN users u ON t.user_id = u.id
             WHERE t.event_id = :event_id
+            AND t.status IN ('valid','used')
         ";
 
             $stmt = $db->prepare($query);
@@ -1071,6 +1163,300 @@ class EventController
             return $response
                 ->withHeader('Content-Type', 'application/json')
                 ->withStatus(500);
+        }
+    }
+
+    public function registerForEvent(Request $request, Response $response, array $args): Response
+    {
+        try {
+            $db = \App\Models\Database::connect();
+            $user = $request->getAttribute('user');
+            $eventId = (int)$args['id'];
+
+            $stmt = $db->prepare("SELECT id, title, venue, starts_at, capacity, price, status FROM events WHERE id = :id LIMIT 1");
+            $stmt->execute(['id' => $eventId]);
+            $event = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+            if (!$event) {
+                return $this->errorResponse($response, 'Event not found', 404);
+            }
+
+            if ($event['status'] !== 'approved') {
+                return $this->errorResponse($response, 'Registration is not open for this event', 403);
+            }
+
+            if (strtotime($event['starts_at']) <= time()) {
+                return $this->errorResponse($response, 'This event has already started or closed registration', 400);
+            }
+
+            $existingStmt = $db->prepare("SELECT id FROM tickets WHERE event_id = :event_id AND user_id = :user_id AND status IN ('valid','used') LIMIT 1");
+            $existingStmt->execute([
+                'event_id' => $eventId,
+                'user_id' => $user->id,
+            ]);
+
+            if ($existingStmt->fetch()) {
+                return $this->errorResponse($response, 'You are already registered for this event', 409);
+            }
+
+            $price = (float)$event['price'];
+            $parsedBody = $request->getParsedBody() ?: [];
+            $paymentMethod = isset($parsedBody['payment_method']) ? trim($parsedBody['payment_method']) : null;
+
+            if ($price > 0 && empty($paymentMethod)) {
+                $response->getBody()->write(json_encode([
+                    'status' => 'payment_required',
+                    'message' => 'Payment is required before registration can be completed.',
+                    'payment_required' => true,
+                    'price' => $price,
+                    'available_payment_methods' => [
+                        'FPX',
+                        'Touch n Go EWallet',
+                        'Credit / Debit Card',
+                    ],
+                ]));
+
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(402);
+            }
+
+            if ($price > 0) {
+                $allowedMethods = ['FPX', 'Touch n Go EWallet', 'Credit / Debit Card'];
+                if (!in_array($paymentMethod, $allowedMethods, true)) {
+                    return $this->errorResponse($response, 'Invalid payment method selected', 400);
+                }
+            } else {
+                $paymentMethod = 'Free';
+            }
+
+            if (!empty($event['capacity'])) {
+                $countStmt = $db->prepare("SELECT COUNT(*) AS total FROM tickets WHERE event_id = :event_id AND status IN ('valid','used')");
+                $countStmt->execute(['event_id' => $eventId]);
+                $countResult = $countStmt->fetch(\PDO::FETCH_ASSOC);
+                $reserved = (int)($countResult['total'] ?? 0);
+
+                if ($reserved >= (int)$event['capacity']) {
+                    return $this->errorResponse($response, 'Event is full', 409);
+                }
+            }
+
+            $seatNumber = $this->assignSeatNumber($db, $eventId, $event['capacity']);
+
+            $insert = $db->prepare("INSERT INTO tickets (user_id, event_id, status, issued_at, seat_number, payment_method) VALUES (:user_id, :event_id, 'valid', NOW(), :seat_number, :payment_method)");
+            $success = $insert->execute([
+                'user_id' => $user->id,
+                'event_id' => $eventId,
+                'seat_number' => $seatNumber,
+                'payment_method' => $paymentMethod,
+            ]);
+
+            if (!$success) {
+                return $this->errorResponse($response, 'Failed to register for event', 500);
+            }
+
+            $ticketId = (int)$db->lastInsertId();
+            $ticketNumber = str_pad($ticketId, 5, '0', STR_PAD_LEFT);
+            $qrPayload = 'eventora://ticket/' . $ticketId;
+
+            $updateQr = $db->prepare("UPDATE tickets SET qr_code = :qr_code WHERE id = :id");
+            $updateQr->execute([
+                'qr_code' => $qrPayload,
+                'id' => $ticketId,
+            ]);
+
+            $ticket = [
+                'ticket_id' => $ticketId,
+                'ticket_number' => $ticketNumber,
+                'event_id' => $eventId,
+                'event_title' => $event['title'],
+                'venue' => $event['venue'],
+                'starts_at' => $event['starts_at'],
+                'issued_at' => date('Y-m-d H:i:s'),
+                'status' => 'valid',
+                'seat_number' => $seatNumber,
+                'payment_method' => $paymentMethod,
+                'qr_payload' => $qrPayload,
+            ];
+
+            $response->getBody()->write(json_encode([
+                'status' => 'success',
+                'message' => 'Registration successful',
+                'ticket' => $ticket,
+            ]));
+
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(201);
+        } catch (\Exception $e) {
+            return $this->errorResponse($response, $e->getMessage(), 500);
+        }
+    }
+
+    private function assignSeatNumber(\PDO $db, int $eventId, $capacity = null): string
+    {
+        $countStmt = $db->prepare("SELECT COUNT(*) AS total FROM tickets WHERE event_id = :event_id AND status IN ('valid','used')");
+        $countStmt->execute(['event_id' => $eventId]);
+        $countResult = $countStmt->fetch(\PDO::FETCH_ASSOC);
+        $nextIndex = ((int)$countResult['total'] ?? 0) + 1;
+
+        if ($capacity !== null && $capacity > 0 && $nextIndex > (int)$capacity) {
+            throw new \Exception('Event is full');
+        }
+
+        return $this->formatSeatNumber($nextIndex);
+    }
+
+    private function formatSeatNumber(int $seatIndex): string
+    {
+        $row = chr(ord('A') + floor(($seatIndex - 1) / 10));
+        $column = (($seatIndex - 1) % 10) + 1;
+        return sprintf('%s%02d', $row, $column);
+    }
+
+    public function getUserTickets(Request $request, Response $response): Response
+    {
+        try {
+            $db = \App\Models\Database::connect();
+            $user = $request->getAttribute('user');
+
+            $query = "
+                SELECT
+                    t.id AS ticket_id,
+                    t.event_id,
+                    LPAD(t.id, 5, '0') AS ticket_number,
+                    t.status AS ticket_status,
+                    t.issued_at,
+                    t.seat_number,
+                    t.payment_method,
+                    t.qr_code,
+                    e.title AS event_title,
+                    e.venue,
+                    e.starts_at,
+                    e.ends_at,
+                    e.capacity,
+                    e.price,
+                    e.image_path,
+                    e.category_tags,
+                    e.status AS event_status
+                FROM tickets t
+                JOIN events e ON e.id = t.event_id
+                WHERE t.user_id = :user_id
+                ORDER BY e.starts_at DESC
+            ";
+
+            $stmt = $db->prepare($query);
+            $stmt->execute(['user_id' => $user->id]);
+            $tickets = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+            foreach ($tickets as &$ticket) {
+                $ticket['qr_payload'] = $ticket['qr_code'] ?? 'eventora://ticket/' . $ticket['ticket_id'];
+            }
+
+            $response->getBody()->write(json_encode([
+                'status' => 'success',
+                'data' => $tickets,
+            ]));
+
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+        } catch (\Exception $e) {
+            return $this->errorResponse($response, $e->getMessage(), 500);
+        }
+    }
+
+    public function getTicketDetail(Request $request, Response $response, array $args): Response
+    {
+        try {
+            $db = \App\Models\Database::connect();
+            $user = $request->getAttribute('user');
+            $ticketId = (int)$args['id'];
+
+            $query = "
+                SELECT
+                    t.id AS ticket_id,
+                    t.event_id,
+                    LPAD(t.id, 5, '0') AS ticket_number,
+                    t.status AS ticket_status,
+                    t.issued_at,
+                    t.seat_number,
+                    t.payment_method,
+                    t.qr_code,
+                    e.title AS event_title,
+                    e.description AS event_description,
+                    e.venue,
+                    e.starts_at,
+                    e.ends_at,
+                    e.capacity,
+                    e.price,
+                    e.image_path,
+                    e.category_tags,
+                    e.status AS event_status
+                FROM tickets t
+                JOIN events e ON e.id = t.event_id
+                WHERE t.id = :ticket_id
+                AND t.user_id = :user_id
+                LIMIT 1
+            ";
+
+            $stmt = $db->prepare($query);
+            $stmt->execute([
+                'ticket_id' => $ticketId,
+                'user_id' => $user->id,
+            ]);
+
+            $ticket = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+            if (!$ticket) {
+                return $this->errorResponse($response, 'Ticket not found', 404);
+            }
+
+            $ticket['qr_payload'] = $ticket['qr_code'] ?? 'eventora://ticket/' . $ticket['ticket_id'];
+
+            $response->getBody()->write(json_encode([
+                'status' => 'success',
+                'data' => $ticket,
+            ]));
+
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+        } catch (\Exception $e) {
+            return $this->errorResponse($response, $e->getMessage(), 500);
+        }
+    }
+
+    public function cancelTicket(Request $request, Response $response, array $args): Response
+    {
+        try {
+            $db = \App\Models\Database::connect();
+            $user = $request->getAttribute('user');
+            $ticketId = (int)$args['id'];
+
+            $stmt = $db->prepare("SELECT t.id, t.event_id, t.status, e.starts_at FROM tickets t JOIN events e ON e.id = t.event_id WHERE t.id = :ticket_id AND t.user_id = :user_id LIMIT 1");
+            $stmt->execute([
+                'ticket_id' => $ticketId,
+                'user_id' => $user->id,
+            ]);
+
+            $ticket = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+            if (!$ticket) {
+                return $this->errorResponse($response, 'Ticket not found', 404);
+            }
+
+            if ($ticket['status'] !== 'valid') {
+                return $this->errorResponse($response, 'Only active tickets can be cancelled', 400);
+            }
+
+            if (strtotime($ticket['starts_at']) <= time()) {
+                return $this->errorResponse($response, 'Cannot cancel ticket after the event has started', 400);
+            }
+
+            $update = $db->prepare("UPDATE tickets SET status = 'cancelled' WHERE id = :ticket_id");
+            $update->execute(['ticket_id' => $ticketId]);
+
+            $response->getBody()->write(json_encode([
+                'status' => 'success',
+                'message' => 'Ticket cancelled successfully',
+            ]));
+
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+        } catch (\Exception $e) {
+            return $this->errorResponse($response, $e->getMessage(), 500);
         }
     }
 
