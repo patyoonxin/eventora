@@ -1,20 +1,16 @@
 <template>
   <div class="min-h-screen px-4 sm:px-6 lg:px-8 py-8 bg-white dark:bg-gray-900">
+    <!-- Header section (unchanged) -->
     <div class="flex flex-col gap-3 mb-8">
       <div class="mb-6 text-left items-center justify-between pl-2">
-      <h2 class="text-3xl font-extrabold text-gray-900 dark:text-white">
-        Scan QR Code
-      </h2>
-      <p class="text-sm text-gray-400 mt-1">Use the camera to scan a student ticket and mark attendance.</p>
-    </div>
-      
+        <h2 class="text-3xl font-extrabold text-gray-900 dark:text-white">
+          Scan QR Code
+        </h2>
+        <p class="text-sm text-gray-400 mt-1">Use the camera to scan a student ticket and mark attendance.</p>
+      </div>
 
-      <div
-        class="rounded-3xl bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 p-4"
-      >
-        <label
-          class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 text-left"
-        >
+      <div class="rounded-3xl bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 p-4">
+        <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 text-left">
           Select event to check in
         </label>
         <div class="flex items-center gap-3 flex-col sm:flex-row">
@@ -29,7 +25,7 @@
           </select>
           <button
             type="button"
-            class="rounded-2xl bg-gradient-to-r from-purple-600 to-blue-600 dark:from-purple-500 dark:to-blue-500  text-white px-5 py-3 font-semibold transition hover:bg-blue-500 disabled:opacity-50"
+            class="rounded-2xl bg-gradient-to-r from-purple-600 to-blue-600 dark:from-purple-500 dark:to-blue-500 text-white px-5 py-3 font-semibold transition hover:bg-blue-500 disabled:opacity-50"
             :disabled="!selectedEventId || scanning || isLoading"
             @click="toggleScanner"
           >
@@ -37,102 +33,72 @@
           </button>
         </div>
         <p class="mt-3 text-sm text-gray-500 dark:text-gray-400 text-left">
-          If the camera prompt does not appear, make sure your browser has
-          camera access enabled.
+          {{ platformInfo }}
         </p>
       </div>
     </div>
 
-    <div
-      v-if="isLoading"
-      class="rounded-3xl bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 p-10 text-center text-gray-500 dark:text-gray-400"
-    >
+    <div v-if="isLoading" class="rounded-3xl bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 p-10 text-center text-gray-500 dark:text-gray-400">
       Loading events and camera permissions...
     </div>
 
     <div v-else>
       <div class="grid gap-6 lg:grid-cols-[1.5fr_1fr]">
-        <div
-          class="rounded-3xl bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 p-6"
-        >
-          <div
-            id="html5qr-reader"
-            class="w-full min-h-[360px] rounded-3xl bg-black/5 dark:bg-white/5 overflow-hidden"
-          ></div>
+        <!-- Scanner area - only show on web -->
+        <div v-if="isWeb" class="rounded-3xl bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 p-6">
+          <div id="html5qr-reader" class="w-full min-h-[360px] rounded-3xl bg-black/5 dark:bg-white/5 overflow-hidden"></div>
           <div class="mt-4 space-y-3">
             <div class="flex items-center justify-between gap-4">
-              <span
-                class="text-sm font-semibold text-gray-700 dark:text-gray-300"
-                >Camera</span
-              >
+              <span class="text-sm font-semibold text-gray-700 dark:text-gray-300">Camera</span>
               <select
                 v-model="selectedCameraId"
                 class="rounded-2xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 px-3 py-2"
                 :disabled="cameraDevices.length === 0"
               >
                 <option disabled value="">Select a camera</option>
-                <option
-                  v-for="device in cameraDevices"
-                  :key="device.id"
-                  :value="device.id"
-                >
+                <option v-for="device in cameraDevices" :key="device.id" :value="device.id">
                   {{ device.label || `Camera ${device.id}` }}
                 </option>
               </select>
             </div>
-
             <div class="text-sm text-gray-600 dark:text-gray-400">
-              Scanned result will be sent to the organiser check-in endpoint
-              automatically.
+              Scanned result will be sent to the organiser check-in endpoint automatically.
             </div>
           </div>
         </div>
 
+        <!-- Status section -->
         <div class="space-y-4">
-          <div
-            class="rounded-3xl bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 p-6 shadow-sm"
-          >
+          <div class="rounded-3xl bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 p-6 shadow-sm">
             <div class="flex items-center justify-between">
               <div>
-                <h2 class="text-xl font-bold text-gray-900 dark:text-white">
-                  Scan status
-                </h2>
-                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                  Scan one ticket at a time for attendance.
-                </p>
+                <h2 class="text-xl font-bold text-gray-900 dark:text-white">Scan status</h2>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Scan one ticket at a time for attendance.</p>
               </div>
-              <span
-                :class="[
-                  'inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold',
-                  scanning
-                    ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-200'
-                    : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
-                ]"
-              >
+              <span :class="[
+                'inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold',
+                scanning
+                  ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-200'
+                  : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
+              ]">
                 {{ scanning ? "Scanning" : "Idle" }}
               </span>
             </div>
 
             <div class="mt-5 space-y-3">
               <div class="rounded-3xl bg-gray-50 dark:bg-gray-900 p-4">
-                <p class="text-sm text-gray-500 dark:text-gray-400">
-                  Last scan
-                </p>
-                <p
-                  class="mt-2 text-sm text-gray-800 dark:text-gray-100 break-words"
-                >
+                <p class="text-sm text-gray-500 dark:text-gray-400">Last scan</p>
+                <p class="mt-2 text-sm text-gray-800 dark:text-gray-100 break-words">
                   {{ lastScanText || "No scans yet" }}
                 </p>
               </div>
 
-              <div
-                class="rounded-3xl p-4"
-                :class="
-                  messageType === 'success'
-                    ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200'
-                    : 'bg-rose-50 text-rose-800 dark:bg-rose-900/40 dark:text-rose-200'
-                "
-              >
+              <div :class="[
+                'rounded-3xl p-4',
+                messageType === 'success'
+                  ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200'
+                  : 'bg-rose-50 text-rose-800 dark:bg-rose-900/40 dark:text-rose-200'
+              ]">
                 <p class="text-sm font-semibold">{{ messageTitle }}</p>
                 <p class="mt-2 text-sm leading-relaxed">
                   {{ statusMessage || messageFallback }}
@@ -141,20 +107,13 @@
             </div>
           </div>
 
-          <div
-            class="rounded-3xl bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 p-6"
-          >
-            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
-              How it works
-            </h3>
+          <div class="rounded-3xl bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 p-6">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">How it works</h3>
             <ul class="mt-3 space-y-2 text-sm text-gray-600 dark:text-gray-400 text-left">
               <li>1. Select the event you are checking students in for.</li>
               <li>2. Click Start scanning and allow camera access.</li>
               <li>3. Hold the ticket QR code in front of the camera.</li>
-              <li>
-                4. The scanned ticket is sent to the server and marked checked
-                in.
-              </li>
+              <li>4. The scanned ticket is sent to the server and marked checked in.</li>
             </ul>
           </div>
         </div>
@@ -162,14 +121,24 @@
     </div>
   </div>
 </template>
-
 <script setup>
 import { ref, onMounted, onUnmounted, watch, computed } from "vue";
 import { useAuthStore } from "@/stores/auth";
+import { Capacitor } from "@capacitor/core";
+import { BarcodeScanner } from "@capacitor-mlkit/barcode-scanning";
 import { Html5Qrcode } from "html5-qrcode";
 
 const authStore = useAuthStore();
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+
+// Platform detection
+const isWeb = computed(() => !Capacitor.isNativePlatform());
+const platformInfo = computed(() => {
+  if (isWeb.value) {
+    return "If the camera prompt does not appear, make sure your browser has camera access enabled.";
+  }
+  return "Using native Android camera with ML Kit for scanning.";
+});
 
 const events = ref([]);
 const selectedEventId = ref("");
@@ -225,7 +194,10 @@ const loadEvents = async () => {
       throw new Error(data.message || "Unable to load events.");
     }
 
-    await loadCameras();
+    // Only load cameras on web
+    if (isWeb.value) {
+      await loadCameras();
+    }
   } catch (error) {
     statusMessage.value = error.message || "Could not load events.";
     messageType.value = "error";
@@ -250,7 +222,17 @@ const loadCameras = async () => {
 };
 
 const startScanner = async () => {
-  if (!selectedEventId.value || !selectedCameraId.value) return;
+  if (!selectedEventId.value) return;
+
+  if (isWeb.value) {
+    await startWebScanner();
+  } else {
+    await startAndroidScanner();
+  }
+};
+
+const startWebScanner = async () => {
+  if (!selectedCameraId.value) return;
 
   try {
     if (!html5Qrcode.value) {
@@ -270,7 +252,7 @@ const startScanner = async () => {
       },
       (errorMessage) => {
         console.debug("QR scan error:", errorMessage);
-      },
+      }
     );
   } catch (error) {
     scanning.value = false;
@@ -279,7 +261,49 @@ const startScanner = async () => {
   }
 };
 
+const startAndroidScanner = async () => {
+  try {
+    scanning.value = true;
+    statusMessage.value = "";
+    messageType.value = "";
+
+    // Request camera permission
+    const permission = await BarcodeScanner.requestPermissions();
+    
+    if (permission.camera !== "granted") {
+      throw new Error("Camera permission denied");
+    }
+
+    // Start scanning
+    const result = await BarcodeScanner.scan({
+      formats: [1], // 1 = QR_CODE format
+    });
+
+    if (result && result.barcodes && result.barcodes.length > 0) {
+      const qrValue = result.barcodes[0].value;
+      lastScanText.value = qrValue;
+      await handleScan(qrValue);
+    }
+
+    scanning.value = false;
+  } catch (error) {
+    scanning.value = false;
+    statusMessage.value = error.message || "Could not start scanner.";
+    messageType.value = "error";
+    console.error("Android scanner error:", error);
+  }
+};
+
 const stopScanner = async () => {
+  if (isWeb.value) {
+    await stopWebScanner();
+  } else {
+    // ML Kit scanner stops automatically after scan
+    scanning.value = false;
+  }
+};
+
+const stopWebScanner = async () => {
   if (!html5Qrcode.value || !scanning.value) return;
   try {
     await html5Qrcode.value.stop();
@@ -319,7 +343,7 @@ const handleScan = async (decodedText) => {
           Accept: "application/json",
         },
         body: JSON.stringify({ qr_payload: decodedText }),
-      },
+      }
     );
 
     const data = await response.json();
