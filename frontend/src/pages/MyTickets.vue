@@ -1,6 +1,5 @@
 <template>
   <div class="min-h-screen px-4 sm:px-6 lg:px-8 py-8 bg-white dark:bg-gray-900">
-  
       <div class="max-w-7xl mx-auto mb-4 text-left">
         <h2 class="text-3xl font-extrabold text-gray-900 dark:text-white">
           My Tickets
@@ -17,6 +16,23 @@
           searchPlaceholder="Search by event title, keywords, or host club..."
         />
 
+        <div class="flex flex-wrap gap-2 items-center border-b border-gray-100 dark:border-gray-800 pb-4">
+          <button
+            v-for="status in statusOptions"
+            :key="status.value"
+            @click="selectedStatus = status.value"
+            type="button"
+            class="px-4 py-2 text-sm font-semibold rounded-full transition duration-200 capitalize tracking-wide"
+            :class="[
+              selectedStatus === status.value
+                ? 'bg-blue-600 text-white shadow-sm'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
+            ]"
+          >
+            {{ status.label }}
+          </button>
+        </div>
+
         <div v-if="isLoading" class="text-center text-gray-500 py-24 font-medium">
           Loading your tickets...
         </div>
@@ -32,7 +48,7 @@
               No tickets found
             </p>
             <p class="mt-2 text-gray-500 dark:text-gray-400">
-              Try adjusting your search query or register for events.
+              Try adjusting your search filters or register for events.
             </p>
           </div>
 
@@ -109,7 +125,6 @@
           </div>
         </div>
       </div>
-    
   </div>
 </template>
 
@@ -132,6 +147,15 @@ const searchQuery = ref("");
 const sortBy = ref("date-asc");
 const selectedCategories = ref([]);
 const selectedPriceTypes = ref([]);
+
+// New Status Filter States
+const selectedStatus = ref("all");
+const statusOptions = [
+  { label: "all tickets", value: "all" },
+  { label: "valid", value: "valid" },
+  { label: "used", value: "used" },
+  { label: "cancelled", value: "cancelled" }
+];
 
 const categoriesList = ["Academic", "Sports", "Cultural", "Religious"];
 
@@ -212,11 +236,18 @@ const cancelTicket = async (ticketId) => {
   }
 };
 
-// Fixed logic to point directly to 'tickets' instead of 'events'
+// Filter logic block
 const filteredTickets = computed(() => {
   let result = [...tickets.value];
 
-  // 1. Search Box Filter execution
+  // 1. Status Pill Filter Layer
+  if (selectedStatus.value !== "all") {
+    result = result.filter(
+      (ticket) => ticket.ticket_status?.toLowerCase() === selectedStatus.value
+    );
+  }
+
+  // 2. Search Box Filter Layer
   if (searchQuery.value.trim()) {
     const query = searchQuery.value.toLowerCase().trim();
     result = result.filter(
@@ -227,7 +258,7 @@ const filteredTickets = computed(() => {
     );
   }
 
-  // 2. Fallback basic Sorting Pipeline (Handles date ordering if picked)
+  // 3. Sorting Pipeline
   result.sort((a, b) => {
     if (sortBy.value === "date-asc") return new Date(a.starts_at) - new Date(b.starts_at);
     if (sortBy.value === "date-desc") return new Date(b.starts_at) - new Date(a.starts_at);
