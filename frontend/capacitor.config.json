@@ -1,0 +1,10 @@
+{
+  "appId": "com.example.app",
+  "appName": "eventora",
+  "webDir": "dist",
+  "plugins": {
+    "BarcodeScanner": {
+      "formats": [1]
+    }
+  }
+}

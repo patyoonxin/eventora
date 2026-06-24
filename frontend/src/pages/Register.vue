@@ -52,10 +52,10 @@ const register = async () => {
 </script>
 
 <template>
-  <div class="min-h-screen flex items-center justify-center px-4 page-bg">
+  <div class="min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-8 page-bg">
 
     <!-- Card -->
-    <div class="card w-full max-w-sm">
+    <div class="card w-full max-w-md sm:max-w-lg">
 
       <!-- Logo -->
       <div class="flex justify-center mb-8">
@@ -142,12 +142,13 @@ const register = async () => {
 .page-bg {
   background: linear-gradient(135deg, #ede9fe 0%, #dbeafe 100%);
   min-height: 100vh;
+  padding: 48px 16px 60px;
 }
 
 .card {
   background: #ffffff;
   border-radius: 20px;
-  padding: 40px 36px;
+  padding: 40px 28px;
   box-shadow: 0 8px 40px rgba(124, 58, 237, 0.10), 0 1.5px 6px rgba(0,0,0,0.04);
   border: 1px solid rgba(255,255,255,0.8);
 }

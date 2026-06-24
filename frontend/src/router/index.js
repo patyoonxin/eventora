@@ -54,6 +54,13 @@ const router = createRouter({
       meta: { role: "student" },
     },
     {
+      path: "/tickets/:id",
+      name: "TicketDetail",
+      component: () => import("@/pages/TicketDetail.vue"),
+      meta: { role: "student" },
+      props: true,
+    },
+    {
       path: "/history",
       name: "History",
       component: History,

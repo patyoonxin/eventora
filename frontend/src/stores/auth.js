@@ -6,7 +6,7 @@ import router from "@/router";
 
 export const useAuthStore = defineStore('auth', () => {
 
-  const API_BASE = import.meta.env.VITE_API_BASE_URL
+  const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
 
   // 1. State (Global storage)
   const token = ref(localStorage.getItem('eventora_token') || null)

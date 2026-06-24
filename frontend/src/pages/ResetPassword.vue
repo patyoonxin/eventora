@@ -80,11 +80,11 @@ const handleSubmit = async () => {
 </script>
 
 <template>
-  <div class="page-bg">
+  <div class="page-bg px-4 sm:px-6 lg:px-8">
     <div class="orb orb-top" />
     <div class="orb orb-bottom" />
 
-    <div class="card-wrap" style="animation: slideUp 0.6s ease-out">
+    <div class="card-wrap mx-auto" style="animation: slideUp 0.6s ease-out">
       <div class="card">
 
         <!-- Logo -->
@@ -214,7 +214,7 @@ const handleSubmit = async () => {
 .orb-top { top: 0; right: 0; width: 380px; height: 380px; background: linear-gradient(135deg, #7c3aed, #a855f7); animation: float 20s ease-in-out infinite; }
 .orb-bottom { bottom: 0; left: 0; width: 320px; height: 320px; background: linear-gradient(135deg, #3b82f6, #60a5fa); animation: float 15s ease-in-out infinite reverse; }
 
-.card-wrap { position: relative; z-index: 10; width: 100%; max-width: 360px; }
+.card-wrap { position: relative; z-index: 10; width: 100%; max-width: 360px; margin-inline: auto; }
 .card {
   background: #fff; border-radius: 20px; padding: 36px;
   box-shadow: 0 8px 40px rgba(124,58,237,0.10), 0 1.5px 6px rgba(0,0,0,0.04);
@@ -301,5 +301,10 @@ const handleSubmit = async () => {
 @keyframes slideUp {
   from { opacity: 0; transform: translateY(30px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 640px) {
+  .page-bg { padding: 32px 12px; }
+  .card { padding: 28px 20px; }
 }
 </style>

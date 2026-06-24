@@ -150,7 +150,7 @@ const renderRevenueChart = (rawData) => {
 <template>
   <div class="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 pb-24">
     
-    <div class="max-w-4xl mx-auto mb-6 text-left items-center justify-between pl-2">
+    <div class="max-w-7xl mx-auto mb-6 text-left items-center justify-between pl-2">
       <h2 class="text-3xl sm:text-3xl font-black text-gray-900 dark:text-white tracking-tight mt-2">
         Campus Oversight Metrics
       </h2>

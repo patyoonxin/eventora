@@ -3,8 +3,8 @@ import { ref, onMounted, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth"; 
 import axios from "axios";
-//import { Capacitor } from '@capacitor/core';
-//import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Capacitor } from '@capacitor/core';
+import { Filesystem, Directory } from '@capacitor/filesystem';
 
 const route = useRoute();
 const router = useRouter();
@@ -139,21 +139,21 @@ const handleExportAttendance = async () => {
     const filename = `event_${eventId}_attendance.csv`;
 
     // --- STRATEGY SPLIT BASED ON PLATFORM ---
-    //if (Capacitor.isNativePlatform()) {
+    if (Capacitor.isNativePlatform()) {
       // 1. ANDROID / NATIVE LOGIC
-    //  const base64Data = await blobToBase64(response.data);
+      const base64Data = await blobToBase64(response.data);
       
       // Clean the base64 string (remove the "data:text/csv;base64," prefix)
-    //   const pureBase64 = base64Data.split(',')[1];
+       const pureBase64 = base64Data.split(',')[1];
 
-    //   const result = await Filesystem.writeFile({
-    //     path: filename,
-    //     data: pureBase64,
-    //     directory: Directory.External, // Saves to device Documents folder
-    //   });
+       const result = await Filesystem.writeFile({
+         path: filename,
+         data: pureBase64,
+         directory: Directory.External, // Saves to device Documents folder
+       });
 
-        // console.log(result.uri);
-    // } else {
+         console.log(result.uri);
+     } else {
       // 2. STANDARD WEB BROWSER LOGIC
       const url = window.URL.createObjectURL(new Blob([response.data], { type: 'text/csv' }));
       const link = document.createElement('a');
@@ -165,7 +165,7 @@ const handleExportAttendance = async () => {
       
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-    //}
+    }
 
   } catch (error) {
     console.error("Export failed:", error);

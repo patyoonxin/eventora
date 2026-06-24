@@ -2,8 +2,8 @@
 import { ref, onMounted, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
-//import { Capacitor } from '@capacitor/core'
-//import { Browser } from '@capacitor/browser'
+import { Capacitor } from "@capacitor/core";
+import { Browser } from "@capacitor/browser";
 
 const route = useRoute();
 const router = useRouter();
@@ -53,47 +53,47 @@ const handleDownloadCertificate = async () => {
     const targetUrl = `${API_BASE}/api/users/past-events/${eventId}/certificate`;
 
     // Case 1: Running on native Android/iOS via Capacitor
-    //if (Capacitor.isNativePlatform()) {
-    // Pass the token inside a query parameter so the external mobile system browser can pass backend auth check
-    //await Browser.open({
-    //url: `${targetUrl}?token=${authStore.token}`
-    //})
-    //}
-    // Case 2: Running on a desktop/mobile standard browser
-    //else {
-    const response = await fetch(targetUrl, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${authStore.token}`,
-      },
-    });
-
-    if (!response.ok) {
-      // If it fails, fallback to JSON error parse safely
-      const errorJson = await response.json();
-      throw new Error(
-        errorJson.message || "Unable to retrieve your certificate.",
-      );
+    if (Capacitor.isNativePlatform()) {
+      // Pass the token inside a query parameter so the external mobile system browser can pass backend auth check
+      await Browser.open({
+        url: `${targetUrl}?token=${authStore.token}`,
+      });
     }
+    // Case 2: Running on a desktop/mobile standard browser
+    else {
+      const response = await fetch(targetUrl, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${authStore.token}`,
+        },
+      });
 
-    // Read raw binary from Slim 4 Stream as a blob object
-    const blob = await response.blob();
-    const blobUrl = window.URL.createObjectURL(blob);
+      if (!response.ok) {
+        // If it fails, fallback to JSON error parse safely
+        const errorJson = await response.json();
+        throw new Error(
+          errorJson.message || "Unable to retrieve your certificate.",
+        );
+      }
 
-    // Ephemeral virtual anchor DOM layout node creation
-    const downloadLink = document.createElement("a");
-    downloadLink.href = blobUrl;
-    downloadLink.setAttribute(
-      "download",
-      `Certificate_${event.value.title.replace(/\s+/g, "_")}.pdf`,
-    );
-    document.body.appendChild(downloadLink);
-    downloadLink.click();
+      // Read raw binary from Slim 4 Stream as a blob object
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
 
-    // Garbage collection memory scrubbing
-    document.body.removeChild(downloadLink);
-    window.URL.revokeObjectURL(blobUrl);
-    //}
+      // Ephemeral virtual anchor DOM layout node creation
+      const downloadLink = document.createElement("a");
+      downloadLink.href = blobUrl;
+      downloadLink.setAttribute(
+        "download",
+        `Certificate_${event.value.title.replace(/\s+/g, "_")}.pdf`,
+      );
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+
+      // Garbage collection memory scrubbing
+      document.body.removeChild(downloadLink);
+      window.URL.revokeObjectURL(blobUrl);
+    }
   } catch (err) {
     alert(
       err.message ||

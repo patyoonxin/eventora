@@ -38,6 +38,17 @@ return function (App $app) {
     $app->get('/api/events', [EventController::class, 'index']);
     $app->get('/api/events/{id}/participants/count', [EventController::class, 'getParticipantCount']);
 
+    $app->post('/api/events/{id}/register', [EventController::class, 'registerForEvent'])
+        ->add(new JwtAuthMiddleware());
+
+    $app->get('/api/users/tickets', [EventController::class, 'getUserTickets'])
+        ->add(new JwtAuthMiddleware());
+
+    $app->get('/api/users/tickets/{id}', [EventController::class, 'getTicketDetail'])
+        ->add(new JwtAuthMiddleware());
+
+    $app->delete('/api/users/tickets/{id}', [EventController::class, 'cancelTicket'])
+        ->add(new JwtAuthMiddleware());
 
     // PROTECTED ROUTES (Locked Down behind our JWT Check)
     
@@ -72,6 +83,8 @@ return function (App $app) {
         ->add(new JwtAuthMiddleware());
 
     $app->get('/api/society/events/{id}/attendance/export', [EventController::class, 'exportAttendance'])
+        ->add(new JwtAuthMiddleware());
+    $app->post('/api/society/events/{id}/checkin', [EventController::class, 'checkInTicket'])
         ->add(new JwtAuthMiddleware());
     
     $app->get('/api/society/events/{id}/participants', [EventController::class, 'getEventParticipants'])

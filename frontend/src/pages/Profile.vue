@@ -378,7 +378,7 @@ const pwStrengthColors = ['', '#f87171', '#fb923c', '#facc15', '#22c55e']
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 48px 16px;
+  padding: 32px 16px 48px;
   background: linear-gradient(135deg, #ede9fe 0%, #dbeafe 100%);
   position: relative;
   overflow: hidden;
@@ -405,11 +405,11 @@ const pwStrengthColors = ['', '#f87171', '#fb923c', '#facc15', '#22c55e']
 }
 
 /* ── Card ── */
-.card-wrap { position: relative; z-index: 10; width: 100%; max-width: 384px; }
+.card-wrap { position: relative; z-index: 10; width: 100%; max-width: 420px; margin-inline: auto; }
 .card {
   background: #ffffff;
   border-radius: 20px;
-  padding: 36px;
+  padding: 32px;
   box-shadow: 0 8px 40px rgba(124,58,237,0.10), 0 1.5px 6px rgba(0,0,0,0.04);
   border: 1px solid rgba(255,255,255,0.8);
 }
@@ -499,7 +499,10 @@ const pwStrengthColors = ['', '#f87171', '#fb923c', '#facc15', '#22c55e']
   cursor: pointer; transition: background 0.2s;
 }
 .btn-cancel:hover { background: #e5e7eb; }
-.btn-row { display: flex; gap: 12px; }
+.btn-row { display: flex; gap: 12px; flex-direction: column; }
+@media (min-width: 640px) {
+  .btn-row { flex-direction: row; }
+}
 .btn-row .btn-primary { flex: 1; }
 .w-full { width: 100%; }
 .actions { margin-bottom: 0; }
@@ -579,6 +582,11 @@ const pwStrengthColors = ['', '#f87171', '#fb923c', '#facc15', '#22c55e']
 @keyframes float {
   0%, 100% { transform: translate(0, 0); }
   50% { transform: translate(30px, -30px); }
+}
+
+@media (max-width: 640px) {
+  .page-bg { padding: 24px 12px 36px; }
+  .card { padding: 26px; }
 }
 @keyframes logoFloat {
   0%, 100% { transform: translateY(0); }

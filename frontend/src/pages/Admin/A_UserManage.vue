@@ -180,12 +180,11 @@ const closeAddModal = () => {
 </script>
 
 <template>
-  <!-- <div class="page">-->
-  <div class="min-h-screen p-4 sm:p-8 max-w-7xl mx-auto bg-[linear-gradient(135deg,#ede9fe_0%,#dbeafe_100%)]">
-    <!-- Header -->
-    <!--<div class="header">-->
-    <div class="mb-6 text-left flex items-center justify-between pl-2">
-      <div>
+  <div class="min-h-screen px-4 sm:px-6 lg:px-8 py-8 bg-[linear-gradient(135deg,#ede9fe_0%,#dbeafe_100%)]">
+    <div class="max-w-7xl mx-auto">
+      <!-- Header -->
+      <div class="mb-6 text-left flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between pl-2">
+        <div>
         <!-- <h1 class="header-title">User Management</h1> -->
         <h2 class="text-3xl font-extrabold text-gray-900 dark:text-white">
           User Management
@@ -551,6 +550,7 @@ const closeAddModal = () => {
       </div>
     </transition>
   </div>
+</div>
 </template>
 
 <style scoped>
