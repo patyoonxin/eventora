@@ -101,12 +101,6 @@ const router = createRouter({
       component: () => import('@/pages/ResetPassword.vue')
     },
     {
-      path: "/login",
-      name: "Login",
-      component: LoginView,
-      meta: { role: "guest" },
-    },
-    {
       path: '/profile',
       name: 'Profile',
       component: Profile
@@ -200,6 +194,11 @@ const router = createRouter({
       name: "A_UserManage",
       component: A_UserManage,
       meta: { role: "admin" },
+    },
+    {
+      path: "/checkout-success",
+      name: "CheckoutSuccess",
+      component: () => import("@/pages/CheckoutSuccess.vue"),
     },
   ],
 });

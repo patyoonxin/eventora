@@ -37,6 +37,7 @@ return function (App $app) {
     $app->post('/api/login', [AuthController::class, 'login']);
     $app->get('/api/events', [EventController::class, 'index']);
     $app->get('/api/events/{id}/participants/count', [EventController::class, 'getParticipantCount']);
+    $app->get('/api/events/verify-payment', [EventController::class, 'verifyStripePayment']);
 
     $app->post('/api/events/{id}/register', [EventController::class, 'registerForEvent'])
         ->add(new JwtAuthMiddleware());

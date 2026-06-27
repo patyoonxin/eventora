@@ -215,6 +215,16 @@ const handleForgotPassword = () => {
               class="absolute inset-0 bg-gradient-to-r from-purple-700 to-blue-700 dark:from-purple-600 dark:to-blue-600 translate-x-full group-hover:translate-x-0 transition-transform duration-300"
             ></div>
           </button>
+
+          <p class="text-center text-sm text-gray-600 dark:text-gray-300">
+            Don't have an account?
+            <router-link
+              to="/register"
+              class="font-semibold text-purple-600 dark:text-purple-300 hover:text-purple-700 dark:hover:text-purple-200 transition-colors"
+            >
+              Register
+            </router-link>
+          </p>
         </form>
 
         <!-- Footer Info -->
@@ -229,6 +239,15 @@ const handleForgotPassword = () => {
               The Next-Gen Event Management Platform
             </span>
           </p>
+
+          <div class="mt-4 rounded-lg border border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 p-3 text-left">
+            <p class="text-[11px] sm:text-xs text-gray-600 dark:text-gray-300 leading-6">
+              <span class="font-semibold">Demo credentials:</span><br />
+              student: siti.utm.my (securepassword123)<br />
+              organiser: alex.utm.my (securepassword123)<br />
+              admin: admin.utm.my (securepassword123)
+            </p>
+          </div>
         </div>
       </div>
     </div>

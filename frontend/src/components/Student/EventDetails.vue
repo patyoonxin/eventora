@@ -2,12 +2,13 @@
 import { ref, onMounted, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
+import { Browser } from '@capacitor/browser';
 
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
 const eventId = route.params.id;
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
 // Component States
 const event = ref(null);
@@ -20,7 +21,7 @@ const paymentRequired = ref(false);
 const paymentProcessing = ref(false);
 const paymentPrice = ref(0);
 const availablePaymentMethods = ref([]);
-const selectedPaymentMethod = ref('FPX');
+const selectedPaymentMethod = ref("FPX");
 
 onMounted(async () => {
   try {
@@ -117,7 +118,7 @@ const parseJsonSafe = async (response) => {
   } catch (err) {
     const bodyText = await response.text();
     return {
-      status: 'error',
+      status: "error",
       message: bodyText || err.message,
       invalidJson: true,
       statusCode: response.status,
@@ -127,66 +128,75 @@ const parseJsonSafe = async (response) => {
 
 const handleRegisterClick = async () => {
   if (!authStore.isLoggedIn) {
-    registrationMessage.value = 'Please log in to register for events.';
-    router.push('/login');
+    registrationMessage.value = "Please log in to register for events.";
+    router.push("/login");
     return;
   }
-
-  isSubmitting.value = true;
-  registrationMessage.value = '';
-  paymentRequired.value = false;
+  if (isSubmitting.value) return;
 
   try {
+    isSubmitting.value = true;
+    // registrationMessage.value = '';
+    // paymentRequired.value = false;
+
     const response = await fetch(`${API_BASE}/api/events/${eventId}/register`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authStore.token}`,
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${authStore.token}`,
       },
     });
 
-    const json = await parseJsonSafe(response);
+    const data = await response.json();
 
-    if (response.status === 402 && json.payment_required) {
-      paymentRequired.value = true;
-      paymentPrice.value = json.price;
-      availablePaymentMethods.value = json.available_payment_methods || [];
-      selectedPaymentMethod.value = availablePaymentMethods.value[0] || 'FPX';
-      registrationMessage.value = json.message || 'Payment is required before registration can be completed.';
-      return;
-    }
-
+    // 2. Handle backend validation errors
     if (!response.ok) {
-      throw new Error(json.message || `Registration failed (${json.statusCode || response.status}).`);
+      throw new Error(data.message || "An error occurred during registration.");
     }
 
-    registrationMessage.value = json.message || 'Registration successful.';
-    router.push(`/tickets/${json.ticket.ticket_id}`);
-  } catch (err) {
-    registrationMessage.value = err.message || 'Registration failed. Please try again.';
-    console.error('Registration error:', err);
+    // 3. Check what the backend returned
+    if (data.status === "payment_required" && data.url) {
+      // SUCCESS URL FLOW: User paid event, kick them straight to Stripe Checkout
+      const platform = Capacitor.getPlatform();
+
+      if (platform === "web") {
+        //  Web Browser: Use standard redirection in the same tab
+        window.location.href = data.url;
+      } else {
+        //  Native Android/iOS: Open inside the native in-app browser sheet
+        await Browser.open({ url: data.url });
+      }
+    } else if (data.status === "success") {
+      // FREE EVENT FLOW: Ticket issued instantly without Stripe involvement
+      alert("Registration successful! Your ticket has been generated.");
+      // You can redirect to a dashboard page or update local state here
+    }
+  } catch (error) {
+    console.error("Registration failed:", error);
+    alert(error.message || "Something went wrong. Please try again.");
   } finally {
+    // Re-enable the button
     isSubmitting.value = false;
   }
 };
 
 const confirmPayment = async () => {
   if (!selectedPaymentMethod.value) {
-    registrationMessage.value = 'Please choose a payment method.';
+    registrationMessage.value = "Please choose a payment method.";
     return;
   }
 
   paymentProcessing.value = true;
-  registrationMessage.value = '';
+  registrationMessage.value = "";
 
   try {
     const response = await fetch(`${API_BASE}/api/events/${eventId}/register`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authStore.token}`,
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${authStore.token}`,
       },
       body: JSON.stringify({ payment_method: selectedPaymentMethod.value }),
     });
@@ -194,14 +204,15 @@ const confirmPayment = async () => {
     const json = await response.json();
 
     if (!response.ok) {
-      throw new Error(json.message || 'Payment failed.');
+      throw new Error(json.message || "Payment failed.");
     }
 
-    registrationMessage.value = json.message || 'Registration successful.';
+    registrationMessage.value = json.message || "Registration successful.";
     router.push(`/tickets/${json.ticket.ticket_id}`);
   } catch (err) {
-    registrationMessage.value = err.message || 'Payment failed. Please try again.';
-    console.error('Payment error:', err);
+    registrationMessage.value =
+      err.message || "Payment failed. Please try again.";
+    console.error("Payment error:", err);
   } finally {
     paymentProcessing.value = false;
   }
@@ -307,46 +318,18 @@ const confirmPayment = async () => {
         </div>
 
         <button
-          v-if="!paymentRequired"
           @click="handleRegisterClick"
           type="button"
           :disabled="isSubmitting"
           class="w-full flex-1 py-4 text-base sm:text-lg font-bold text-white tracking-widest uppercase bg-gradient-to-r from-blue-600 to-purple-500 dark:from-blue-500 dark:to-purple-500 rounded-2xl shadow-md shadow-purple-500/20 hover:opacity-95 transition-opacity active:scale-[0.99] focus:outline-none disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          {{ isSubmitting ? 'Registering...' : 'Register' }}
+          {{ isSubmitting ? "Registering..." : "Register" }}
         </button>
-
-        <div v-else class="w-full flex flex-col gap-4">
-          <div class="rounded-3xl border border-yellow-200 bg-yellow-50 dark:bg-yellow-950/40 dark:border-yellow-700 p-4 text-sm text-yellow-900 dark:text-yellow-100">
-            <p class="font-semibold">Payment required to complete registration.</p>
-            <p class="mt-2">Pay <strong>{{ formatPrice(paymentPrice) }}</strong> using one of the payment method.</p>
-          </div>
-          <div class="rounded-3xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-950 p-4">
-            <div class="mb-3 text-sm font-semibold text-gray-700 dark:text-gray-300">Select payment method</div>
-            <div class="space-y-3">
-              <label v-for="method in availablePaymentMethods" :key="method" class="flex items-center gap-3 cursor-pointer p-3 rounded-2xl border border-gray-200 dark:border-gray-800 hover:border-blue-400">
-                <input
-                  type="radio"
-                  name="paymentMethod"
-                  :value="method"
-                  v-model="selectedPaymentMethod"
-                  class="form-radio h-4 w-4 text-blue-600"
-                />
-                <span class="text-sm text-gray-700 dark:text-gray-300">{{ method }}</span>
-              </label>
-            </div>
-          </div>
-          <button
-            @click="confirmPayment"
-            type="button"
-            :disabled="paymentProcessing"
-            class="w-full py-4 text-base sm:text-lg font-bold text-white tracking-widest uppercase bg-gradient-to-r from-green-600 to-teal-500 rounded-2xl shadow-md shadow-green-500/20 hover:opacity-95 transition-opacity active:scale-[0.99] focus:outline-none disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            {{ paymentProcessing ? 'Processing payment...' : `Pay ${formatPrice(paymentPrice)}` }}
-          </button>
-        </div>
       </div>
-      <div v-if="registrationMessage" class="mt-4 px-4 py-3 rounded-xl bg-green-50 text-green-700 dark:bg-green-950/20 dark:text-green-200">
+      <div
+        v-if="registrationMessage"
+        class="mt-4 px-4 py-3 rounded-xl bg-green-50 text-green-700 dark:bg-green-950/20 dark:text-green-200"
+      >
         {{ registrationMessage }}
       </div>
     </div>
