@@ -1173,6 +1173,7 @@ class EventController
             $user = $request->getAttribute('user');
             $eventId = (int)$args['id'];
 
+            // 1. Validate event exists and is open
             $stmt = $db->prepare("SELECT id, title, venue, starts_at, capacity, price, status FROM events WHERE id = :id LIMIT 1");
             $stmt->execute(['id' => $eventId]);
             $event = $stmt->fetch(\PDO::FETCH_ASSOC);
@@ -1189,6 +1190,7 @@ class EventController
                 return $this->errorResponse($response, 'This event has already started or closed registration', 400);
             }
 
+            // 2. Prevent Double Registration
             $existingStmt = $db->prepare("SELECT id FROM tickets WHERE event_id = :event_id AND user_id = :user_id AND status IN ('valid','used') LIMIT 1");
             $existingStmt->execute([
                 'event_id' => $eventId,
@@ -1199,35 +1201,7 @@ class EventController
                 return $this->errorResponse($response, 'You are already registered for this event', 409);
             }
 
-            $price = (float)$event['price'];
-            $parsedBody = $request->getParsedBody() ?: [];
-            $paymentMethod = isset($parsedBody['payment_method']) ? trim($parsedBody['payment_method']) : null;
-
-            if ($price > 0 && empty($paymentMethod)) {
-                $response->getBody()->write(json_encode([
-                    'status' => 'payment_required',
-                    'message' => 'Payment is required before registration can be completed.',
-                    'payment_required' => true,
-                    'price' => $price,
-                    'available_payment_methods' => [
-                        'FPX',
-                        'Touch n Go EWallet',
-                        'Credit / Debit Card',
-                    ],
-                ]));
-
-                return $response->withHeader('Content-Type', 'application/json')->withStatus(402);
-            }
-
-            if ($price > 0) {
-                $allowedMethods = ['FPX', 'Touch n Go EWallet', 'Credit / Debit Card'];
-                if (!in_array($paymentMethod, $allowedMethods, true)) {
-                    return $this->errorResponse($response, 'Invalid payment method selected', 400);
-                }
-            } else {
-                $paymentMethod = 'Free';
-            }
-
+            // 3. Check Capacity Limits
             if (!empty($event['capacity'])) {
                 $countStmt = $db->prepare("SELECT COUNT(*) AS total FROM tickets WHERE event_id = :event_id AND status IN ('valid','used')");
                 $countStmt->execute(['event_id' => $eventId]);
@@ -1239,6 +1213,54 @@ class EventController
                 }
             }
 
+            $price = (float)$event['price'];
+
+            // =======================================================
+            // STRIPE FLOW FOR PAID EVENTS (NO WEBHOOK STRATEGY)
+            // =======================================================
+            if ($price > 0) {
+                // Replace with your real test secret key from Stripe Dashboard
+                \Stripe\Stripe::setApiKey($_ENV['STRIPE_SECRET_KEY']);
+
+                // Define your Vue app's frontend domain URL
+                $clientUrl = $_ENV['CLIENT_URL'];
+
+                $session = \Stripe\Checkout\Session::create([
+                    'payment_method_types' => ['card'],
+                    'mode' => 'payment',
+                    // Tucking user_id and event_id into metadata is crucial so we can read it on the success page verification step
+                    'metadata' => [
+                        'user_id' => $user->id,
+                        'event_id' => $eventId
+                    ],
+                    'line_items' => [[
+                        'price_data' => [
+                            'currency' => 'myr',
+                            'product_data' => [
+                                'name' => "Ticket: " . $event['title'],
+                            ],
+                            'unit_amount' => (int)($price * 100), // Stripe uses cents ($25.00 -> 2500)
+                        ],
+                        'quantity' => 1,
+                    ]],
+                    // We append the dynamic checkout session token to the success URL string
+                    'success_url' => $clientUrl . '/checkout-success?session_id={CHECKOUT_SESSION_ID}',
+                    'cancel_url'  => $clientUrl . '/events/' . $eventId,
+                ]);
+
+                $response->getBody()->write(json_encode([
+                    'status' => 'payment_required',
+                    'message' => 'Redirecting to Stripe payment gateway...',
+                    'url' => $session->url
+                ]));
+
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+            }
+
+            // =======================================================
+            // ORIGINAL FREE REGISTRATION FLOW
+            // =======================================================
+            $paymentMethod = 'Free';
             $seatNumber = $this->assignSeatNumber($db, $eventId, $event['capacity']);
 
             $insert = $db->prepare("INSERT INTO tickets (user_id, event_id, status, issued_at, seat_number, payment_method) VALUES (:user_id, :event_id, 'valid', NOW(), :seat_number, :payment_method)");
@@ -1284,6 +1306,90 @@ class EventController
             ]));
 
             return $response->withHeader('Content-Type', 'application/json')->withStatus(201);
+        } catch (\Exception $e) {
+            return $this->errorResponse($response, $e->getMessage(), 500);
+        }
+    }
+
+    public function verifyStripePayment(Request $request, Response $response): Response
+    {
+        try {
+            $queryParams = $request->getQueryParams();
+            $sessionId = $queryParams['session_id'] ?? null;
+
+            if (empty($sessionId)) {
+                return $this->errorResponse($response, 'Missing Stripe session ID', 400);
+            }
+
+            // 1. Ask Stripe for the definitive status of this payment token
+            \Stripe\Stripe::setApiKey($_ENV['STRIPE_SECRET_KEY']);
+            $session = \Stripe\Checkout\Session::retrieve($sessionId);
+
+            if ($session->payment_status !== 'paid') {
+                return $this->errorResponse($response, 'Payment verification failed or incomplete', 400);
+            }
+
+            // Extract metadata items saved during Step 1
+            $userId = (int)$session->metadata->user_id;
+            $eventId = (int)$session->metadata->event_id;
+
+            $db = \App\Models\Database::connect();
+
+            // 2. Prevent Double Registration on Refresh
+            // To strictly protect this, you should ideally alter your `tickets` schema 
+            // to have a `stripe_session_id` column. For now, we will verify by user & event:
+            $checkStmt = $db->prepare("SELECT id, qr_code FROM tickets WHERE event_id = :event_id AND user_id = :user_id AND status = 'valid' LIMIT 1");
+            $checkStmt->execute(['event_id' => $eventId, 'user_id' => $userId]);
+            $existingTicket = $checkStmt->fetch(\PDO::FETCH_ASSOC);
+
+            if ($existingTicket) {
+                // If ticket already exists because they reloaded the success view, simply hand back the existing asset details
+                $response->getBody()->write(json_encode([
+                    'status' => 'success',
+                    'message' => 'Ticket already generated previously.',
+                    'ticket_id' => $existingTicket['id'],
+                    'qr_payload' => $existingTicket['qr_code']
+                ]));
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+            }
+
+            // 3. Look up capacities to execute standard seat logic allocation
+            $evtStmt = $db->prepare("SELECT capacity FROM events WHERE id = :id LIMIT 1");
+            $evtStmt->execute(['id' => $eventId]);
+            $event = $evtStmt->fetch(\PDO::FETCH_ASSOC);
+            $capacity = $event ? $event['capacity'] : null;
+
+            $seatNumber = $this->assignSeatNumber($db, $eventId, $capacity);
+            $paymentMethod = 'Stripe Card';
+
+            // 4. Save into database
+            $insert = $db->prepare("INSERT INTO tickets (user_id, event_id, status, issued_at, seat_number, payment_method) VALUES (:user_id, :event_id, 'valid', NOW(), :seat_number, :payment_method)");
+            $insert->execute([
+                'user_id' => $userId,
+                'event_id' => $eventId,
+                'seat_number' => $seatNumber,
+                'payment_method' => $paymentMethod,
+            ]);
+
+            $ticketId = (int)$db->lastInsertId();
+            $qrPayload = 'eventora://ticket/' . $ticketId;
+
+            // 5. Apply unique QR content code payload details 
+            $updateQr = $db->prepare("UPDATE tickets SET qr_code = :qr_code WHERE id = :id");
+            $updateQr->execute([
+                'qr_code' => $qrPayload,
+                'id' => $ticketId,
+            ]);
+
+            $response->getBody()->write(json_encode([
+                'status' => 'success',
+                'message' => 'Payment validated and registration finalized!',
+                'ticket_id' => $ticketId,
+                'qr_payload' => $qrPayload,
+                'seat_number' => $seatNumber
+            ]));
+
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
         } catch (\Exception $e) {
             return $this->errorResponse($response, $e->getMessage(), 500);
         }
@@ -1467,8 +1573,8 @@ class EventController
 
             // READ THE DYNAMIC DATA LOADED FROM THE JWT MIDDLEWARE 
             $user = $request->getAttribute('user');
-            $userId = $user->id; 
-            
+            $userId = $user->id;
+
             // Grab the specific event ID from the route arguments
             $eventId = $args['event_id'];
 
@@ -1503,11 +1609,11 @@ class EventController
             // 'L' sets Landscape mode (A4 width is 297mm, height is 210mm)
             $pdf = new \FPDF('L', 'mm', 'A4');
             $pdf->AddPage();
-            
+
             // Simple Elegant Certificate Layout 
             // Outer Border
             $pdf->SetLineWidth(1);
-            $pdf->Rect(10, 10, 277, 190); 
+            $pdf->Rect(10, 10, 277, 190);
             // Inner Border
             $pdf->SetLineWidth(0.5);
             $pdf->Rect(13, 13, 271, 184);
@@ -1516,33 +1622,33 @@ class EventController
             $pdf->SetFont('Arial', 'B', 30);
             $pdf->Ln(25);
             $pdf->Cell(0, 15, 'CERTIFICATE OF ATTENDANCE', 0, 1, 'C');
-            
+
             // Subtitle
             $pdf->SetFont('Arial', '', 16);
             $pdf->Ln(10);
             $pdf->Cell(0, 10, 'This is proudly presented to', 0, 1, 'C');
-            
+
             // Student Name
             $pdf->SetFont('Arial', 'B', 24);
             $pdf->Ln(5);
             $pdf->Cell(0, 15, strtoupper($attendance->student_name), 0, 1, 'C');
-            
+
             // Description Context
             $pdf->SetFont('Arial', '', 16);
             $pdf->Ln(5);
             $pdf->Cell(0, 10, 'for actively participating in the society event:', 0, 1, 'C');
-            
+
             // Event Title
             $pdf->SetFont('Arial', 'I', 20);
             $pdf->Ln(5);
             $pdf->Cell(0, 12, '"' . $attendance->event_title . '"', 0, 1, 'C');
-            
+
             // Footer Data (Date and ID validation)
             $pdf->SetFont('Arial', '', 12);
             $pdf->Ln(20);
             $formattedDate = date('d F Y', strtotime($attendance->ends_at));
             $pdf->Cell(0, 10, 'Date Verified: ' . $formattedDate, 0, 1, 'C');
-            
+
             $pdf->SetFont('Arial', 'I', 10);
             $pdf->Cell(0, 10, 'Verification ID: ' . $attendance->ticket_number, 0, 1, 'C');
 
@@ -1555,7 +1661,6 @@ class EventController
                 ->withHeader('Content-Type', 'application/pdf')
                 ->withHeader('Content-Disposition', 'attachment; filename="Certificate_' . $eventId . '.pdf"')
                 ->withBody(new \Slim\Psr7\Stream($stream));
-
         } catch (\Exception $e) {
             $response->getBody()->write(json_encode([
                 "status" => "error",
@@ -1565,7 +1670,7 @@ class EventController
         }
     }
 
-     public function getAllEvents(Request $request, Response $response): Response
+    public function getAllEvents(Request $request, Response $response): Response
     {
         $db = \App\Models\Database::connect();
 
@@ -1604,7 +1709,6 @@ class EventController
             return $response
                 ->withHeader('Content-Type', 'application/json')
                 ->withStatus(200);
-
         } catch (\PDOException $e) {
             // Safe logging without leaking DB architecture strings to public clients [cite: 28]
             $response->getBody()->write(json_encode([
@@ -1619,51 +1723,50 @@ class EventController
     }
 
     public function deleteEvent(Request $request, Response $response, array $args): Response
-{
-    $eventId = $args['id'];
+    {
+        $eventId = $args['id'];
 
-    $db = \App\Models\Database::connect();
+        $db = \App\Models\Database::connect();
 
-    try {
-        $user = $request->getAttribute('user');
-        if (!$user || $user->role !== 'faculty_admin') {
+        try {
+            $user = $request->getAttribute('user');
+            if (!$user || $user->role !== 'faculty_admin') {
+                $response->getBody()->write(json_encode([
+                    "status" => "error",
+                    "message" => "Access denied. Admin privileges required."
+                ]));
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+            }
+
+            // 3. Prepare the DELETE query using safe PDO bound parameters
+            $stmt = $db->prepare("DELETE FROM events WHERE id = :id");
+            $stmt->execute(['id' => $eventId]);
+
+            // Check if any rows were actually affected/removed from the table
+            if ($stmt->rowCount() === 0) {
+                $response->getBody()->write(json_encode([
+                    "status" => "error",
+                    "message" => "Target event could not be found or was already deleted."
+                ]));
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(44);
+            }
+
+            // 4. Return successful execution structure matching your frontend's layout expectations
+            $response->getBody()->write(json_encode([
+                "status" => "success",
+                "message" => "Event record permanently wiped from storage."
+            ]));
+
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+        } catch (\PDOException $e) {
+            // Handle Foreign Key Constraint Failures gracefully 
+            // (e.g., if tickets are still attached to this event, preventing safe hard deletion)
             $response->getBody()->write(json_encode([
                 "status" => "error",
-                "message" => "Access denied. Admin privileges required."
+                "message" => "Cannot delete event. Student tickets are already attached to this record."
             ]));
-            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
         }
-
-        // 3. Prepare the DELETE query using safe PDO bound parameters
-        $stmt = $db->prepare("DELETE FROM events WHERE id = :id");
-        $stmt->execute(['id' => $eventId]);
-
-        // Check if any rows were actually affected/removed from the table
-        if ($stmt->rowCount() === 0) {
-            $response->getBody()->write(json_encode([
-                "status" => "error",
-                "message" => "Target event could not be found or was already deleted."
-            ]));
-            return $response->withHeader('Content-Type', 'application/json')->withStatus(44);
-        }
-
-        // 4. Return successful execution structure matching your frontend's layout expectations
-        $response->getBody()->write(json_encode([
-            "status" => "success",
-            "message" => "Event record permanently wiped from storage."
-        ]));
-
-        return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
-
-    } catch (\PDOException $e) {
-        // Handle Foreign Key Constraint Failures gracefully 
-        // (e.g., if tickets are still attached to this event, preventing safe hard deletion)
-        $response->getBody()->write(json_encode([
-            "status" => "error",
-            "message" => "Cannot delete event. Student tickets are already attached to this record."
-        ]));
-
-        return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
     }
-}
 }
