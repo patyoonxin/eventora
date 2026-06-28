@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Controllers;
 
 use Psr\Http\Message\ResponseInterface as Response;
@@ -64,7 +65,7 @@ class FeedbackController
             // Write insertion command safely using named prepared parameters
             $sql = "INSERT INTO feedbacks (event_id, user_id, rating, comment) 
                     VALUES (:event_id, :user_id, :rating, :comments)";
-            
+
             $stmt = $db->prepare($sql);
             $stmt->execute([
                 'event_id' => $eventId,
@@ -79,7 +80,6 @@ class FeedbackController
                 "message" => "Feedback metrics archived successfully!"
             ]));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(201);
-
         } catch (\PDOException $e) {
             $response->getBody()->write(json_encode([
                 "status" => "error",
@@ -93,6 +93,7 @@ class FeedbackController
      * GET /api/society/events/{id}/feedbacks
      * Fetches individual feedback lines and summaries for a specific society event
      */
+
     public function getEventFeedbacks(Request $request, Response $response, array $args): Response
     {
         // 1. Authenticate using your existing token system
@@ -105,10 +106,8 @@ class FeedbackController
             return $response->withHeader('Content-Type', 'application/json')->withStatus(401);
         }
 
-        // Target the id from the path parameters (e.g., /events/{id}/feedbacks)
         $eventId = $args['id'] ?? null;
-        $userId = $tokenData->id; 
-        $userRole = $tokenData->role; // Pulls the role if you have it, defaults to society
+        $userRole = $tokenData->role;
 
         if ($userRole !== 'organiser') {
             $response->getBody()->write(json_encode([
@@ -121,44 +120,38 @@ class FeedbackController
         $db = \App\Models\Database::connect();
 
         try {
-            // 2. Ownership Verification: Ensure this event belongs to the logged-in society user
-            $verifySql = "SELECT e.id, e.title 
-                          FROM events e
-                          JOIN societies s ON e.society_id = s.id
-                          WHERE e.id = :event_id AND s.id = :user_id";
-            
+            // 2. Simplified Check: Just make sure the event actually exists
+            $verifySql = "SELECT id, title FROM events WHERE id = :event_id LIMIT 1";
+
             $verifyStmt = $db->prepare($verifySql);
-            $verifyStmt->execute([
-                'event_id' => $eventId,
-                'user_id'  => $userId
-            ]);
+            $verifyStmt->execute(['event_id' => $eventId]);
             $eventMeta = $verifyStmt->fetch(\PDO::FETCH_ASSOC);
 
             if (!$eventMeta) {
                 $response->getBody()->write(json_encode([
                     "status" => "error",
-                    "message" => "Resource not found, or you lack organizational permission bounds."
+                    "message" => "Event resource not found."
                 ]));
                 return $response->withHeader('Content-Type', 'application/json')->withStatus(404);
             }
 
             // 3. Fetch collective feedback submissions grouped with student names
             $feedbackSql = "SELECT 
-                                f.id,
-                                f.rating,
-                                f.comment,
-                                f.created_at,
-                                u.name AS student_name
-                            FROM feedbacks f
-                            JOIN users u ON f.user_id = u.id
-                            WHERE f.event_id = :event_id
-                            ORDER BY f.created_at DESC";
+                            f.id,
+                            f.rating,
+                            f.comment,
+                            f.created_at,
+                            u.name AS student_name
+                        FROM feedbacks f
+                        JOIN users u ON f.user_id = u.id
+                        WHERE f.event_id = :event_id
+                        ORDER BY f.created_at DESC";
 
             $feedbackStmt = $db->prepare($feedbackSql);
             $feedbackStmt->execute(['event_id' => $eventId]);
             $feedbacks = $feedbackStmt->fetchAll(\PDO::FETCH_ASSOC);
 
-            // 4. Write perfectly formatted payload into your stream structure
+            // 4. Return payload
             $response->getBody()->write(json_encode([
                 "status" => "success",
                 "data" => [
@@ -167,7 +160,6 @@ class FeedbackController
                 ]
             ]));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
-
         } catch (\PDOException $e) {
             $response->getBody()->write(json_encode([
                 "status" => "error",
@@ -177,7 +169,7 @@ class FeedbackController
         }
     }
 
-   public function getAiSummary(Request $request, Response $response, array $args): Response
+    public function getAiSummary(Request $request, Response $response, array $args): Response
     {
         // 1. Authenticate using your existing token system
         $tokenData = $request->getAttribute('user');
@@ -190,8 +182,8 @@ class FeedbackController
         }
 
         $eventId = $args['id'] ?? null;
-        $userId = $tokenData->id; 
-        $userRole = $tokenData->role; 
+        $userId = $tokenData->id;
+        $userRole = $tokenData->role;
 
         if ($userRole !== 'organiser') {
             $response->getBody()->write(json_encode([
@@ -205,18 +197,18 @@ class FeedbackController
 
         try {
             // 2. Ownership Verification
-            $verifySql = "SELECT e.id, e.title FROM events e JOIN societies s ON e.society_id = s.id WHERE e.id = :event_id AND s.id = :user_id";
-            $verifyStmt = $db->prepare($verifySql);
-            $verifyStmt->execute(['event_id' => $eventId, 'user_id' => $userId]);
-            $eventMeta = $verifyStmt->fetch(\PDO::FETCH_ASSOC);
+            // $verifySql = "SELECT e.id, e.title FROM events e JOIN societies s ON e.society_id = s.id WHERE e.id = :event_id AND s.id = :user_id";
+            // $verifyStmt = $db->prepare($verifySql);
+            // $verifyStmt->execute(['event_id' => $eventId, 'user_id' => $userId]);
+            // $eventMeta = $verifyStmt->fetch(\PDO::FETCH_ASSOC);
 
-            if (!$eventMeta) {
-                $response->getBody()->write(json_encode([
-                    "status" => "error",
-                    "message" => "Resource not found, or you lack organizational permission bounds."
-                ]));
-                return $response->withHeader('Content-Type', 'application/json')->withStatus(404);
-            }
+            // if (!$eventMeta) {
+            //     $response->getBody()->write(json_encode([
+            //         "status" => "error",
+            //         "message" => "Resource not found, or you lack organizational permission bounds."
+            //     ]));
+            //     return $response->withHeader('Content-Type', 'application/json')->withStatus(404);
+            // }
 
             // 3. Fetch collective text feedback submissions
             $feedbackSql = "SELECT f.rating, f.comment FROM feedbacks f WHERE f.event_id = :event_id AND f.comment IS NOT NULL AND f.comment != ''";
@@ -260,7 +252,6 @@ class FeedbackController
                 "data" => ["summary" => $aiSummaryText]
             ]));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
-
         } catch (\PDOException $e) {
             $response->getBody()->write(json_encode([
                 "status" => "error",
