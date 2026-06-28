@@ -1,4 +1,4 @@
-# Eventora 🎟️
+﻿# Eventora 🎟️
 
 > From idea to QR check-in, run your society events end-to-end.
 
@@ -14,60 +14,60 @@ A cross-platform event management and ticketing application designed for student
 ## Features
 
 ### Core Features
-- ?? **Role-Based Access Control** � Support for Attendees, Event Organizers, and Admin roles
-- ?? **Event Management** � Create, edit, and manage events with full lifecycle control
-- ?? **QR Code Ticketing** � Generate secure QR codes for instant ticket validation
-- ?? **Check-in System** � Real-time attendee check-in via mobile camera scanner
-- ?? **Analytics & Reports** � Real-time dashboards with CSV export capabilities
-- ?? **Notifications** � Automated email and in-app alerts for registrations and reminders
+- 🔐 **Role-Based Access Control** – Support for Attendees, Event Organizers, and Admin roles
+- 📅 **Event Management** – Create, edit, and manage events with full lifecycle control
+- 🎫 **QR Code Ticketing** – Generate secure QR codes for instant ticket validation
+- 📍 **Check-in System** – Real-time attendee check-in via mobile camera scanner
+- 📊 **Analytics & Reports** – Real-time dashboards with CSV export capabilities
+- 🔔 **Notifications** – Automated email and in-app alerts for registrations and reminders
 
 ### Premium Features
-- ?? **Stripe Payment Integration** � Full payment processing for paid events
-- ?? **AI-Powered Feedback** � Sentiment analysis and aggregation of attendee feedback
-- ?? **Advanced Analytics** � Premium reporting dashboard for deeper insights
-- ??? **Digital Certificates** � Automated certificate generation for attendees
+- 💳 **Stripe Payment Integration** – Full payment processing for paid events
+- 🤖 **AI-Powered Feedback** – Sentiment analysis and aggregation of attendee feedback
+- 📈 **Advanced Analytics** – Premium reporting dashboard for deeper insights
+- 🎖️ **Digital Certificates** – Automated certificate generation for attendees
 
 ## Tech Stack
 
 ### Frontend
-- **Vue 3** � Progressive JavaScript framework
-- **Pinia** � State management
-- **Vue Router** � Client-side routing
-- **Capacitor** � Native mobile app framework
-- **Tailwind CSS** � Utility-first CSS framework
-- **Vite** � Next-generation build tool
+- **Vue 3** – Progressive JavaScript framework
+- **Pinia** – State management
+- **Vue Router** – Client-side routing
+- **Capacitor** – Native mobile app framework
+- **Tailwind CSS** – Utility-first CSS framework
+- **Vite** – Next-generation build tool
 
 ### Backend
-- **PHP Slim 4** � Lightweight PHP framework
-- **MySQL** � Relational database
-- **PDO** � Database abstraction layer
-- **JWT** � Secure authentication
-- **Stripe API** � Payment processing
-- **SMTP** � Email notifications
+- **PHP Slim 4** – Lightweight PHP framework
+- **MySQL** – Relational database
+- **PDO** – Database abstraction layer
+- **JWT** – Secure authentication
+- **Stripe API** – Payment processing
+- **SMTP** – Email notifications
 
 ## Project Structure
 
-\\\
+``
 eventora/
-+-- frontend/              # Vue 3 web & mobile app
-�   +-- src/
-�   �   +-- components/   # Reusable UI components
-�   �   +-- pages/        # Page-level components
-�   �   +-- stores/       # Pinia state management
-�   �   +-- router/       # Route definitions
-�   +-- android/          # Capacitor Android build
-�   +-- package.json
-+-- backend/              # PHP Slim API
-�   +-- src/
-�   �   +-- Controllers/  # API endpoints
-�   �   +-- Models/       # Data models
-�   �   +-- Services/     # Business logic
-�   �   +-- Middleware/   # Auth & request handlers
-�   +-- config/           # Routes & settings
-�   +-- public/           # Entry point
-�   +-- composer.json
-+-- README.md
-\\\
+├── frontend/              # Vue 3 web & mobile app
+│   ├── src/
+│   │   ├── components/   # Reusable UI components
+│   │   ├── pages/        # Page-level components
+│   │   ├── stores/       # Pinia state management
+│   │   └── router/       # Route definitions
+│   ├── android/          # Capacitor Android build
+│   └── package.json
+├── backend/              # PHP Slim API
+│   ├── src/
+│   │   ├── Controllers/  # API endpoints
+│   │   ├── Models/       # Data models
+│   │   ├── Services/     # Business logic
+│   │   └── Middleware/   # Auth & request handlers
+│   ├── config/           # Routes & settings
+│   ├── public/           # Entry point
+│   └── composer.json
+└── README.md
+``
 
 ## Getting Started
 
@@ -80,77 +80,77 @@ eventora/
 ### Backend Setup
 
 1. Navigate to the backend directory:
-   \\\ash
+   ``ash
    cd backend
-   \\\
+   ``
 
 2. Install dependencies:
-   \\\ash
+   ``ash
    composer install
-   \\\
+   ``
 
-3. Create \.env\ file with database and API credentials:
-   \\\ash
+3. Create .env file with database and API credentials:
+   ``ash
    cp .env.example .env
-   \\\
+   ``
 
 4. Initialize the database:
-   \\\ash
+   ``ash
    mysql -u root -p eventora < database/schema.sql
-   \\\
+   ``
 
 5. Start the development server:
-   \\\ash
+   ``ash
    php -S localhost:8000 -t public
-   \\\
+   ``
 
 ### Frontend Setup
 
 1. Navigate to the frontend directory:
-   \\\ash
+   ``ash
    cd frontend
-   \\\
+   ``
 
 2. Install dependencies:
-   \\\ash
+   ``ash
    npm install
-   \\\
+   ``
 
-3. Create \.env.local\ file:
-   \\\ash
+3. Create .env.local file:
+   ``env
    VITE_API_BASE_URL=http://localhost:8000
    VITE_STRIPE_PUBLISHABLE_KEY=pk_test_...
-   \\\
+   ``
 
 4. Start the development server:
-   \\\ash
+   ``ash
    npm run dev
-   \\\
+   ``
 
 ### Mobile (Android) Build
 
 1. Build the frontend:
-   \\\ash
+   ``ash
    npm run build
-   \\\
+   ``
 
 2. Sync Capacitor:
-   \\\ash
+   ``ash
    npx cap sync
-   \\\
+   ``
 
 3. Open in Android Studio:
-   \\\ash
+   ``ash
    npx cap open android
-   \\\
+   ``
 
 ## Configuration
 
 ### Backend Environment Variables
 
-Create a \.env\ file in the \ackend/\ directory:
+Create a .env file in the ackend/ directory:
 
-\\\env
+``env
 # Database
 DB_HOST=localhost
 DB_NAME=eventora
@@ -170,30 +170,32 @@ SMTP_PASS=your_email_password
 
 # AI Services
 AI_API_KEY=your_ai_service_key
-\\\
+``
 
 ### Frontend Environment Variables
 
-Create a \.env.local\ file in the \rontend/\ directory:
+Create a .env.local file in the rontend/ directory:
 
-\\\env
+``env
 VITE_API_BASE_URL=http://localhost:8000
 VITE_STRIPE_PUBLISHABLE_KEY=pk_test_...
-\\\
+``
 
 ## Development
 
 ### Available Scripts
 
 **Backend:**
-- \php -S localhost:8000 -t public\ � Start development server
+- \php -S localhost:8000 -t public\ – Start development server
 
 **Frontend:**
 - \
-pm run dev\ � Start Vite dev server
+pm run dev\ – Start Vite dev server
 - \
-pm run build\ � Build for production
+pm run build\ – Build for production
 - \
-pm run preview\ � Preview production build locally
+pm run preview\ – Preview production build locally
 
+## License
 
+This project was developed as part of the SCSM2223 - Cross-Platform Application Development course at Universiti Teknologi Malaysia (UTM).
