@@ -4,7 +4,7 @@
 
 A cross-platform event management and ticketing application designed for student societies. Eventora replaces fragmented processes with a unified digital ecosystem for creating events, managing registrations, and handling check-ins via secure QR codes. 
 
-### 🌟Try here: https://eventora-teal.vercel.app/🌟
+### 🌟Try here: https://eventora-teal.vercel.app/
 
 ## Table of Contents
 - [Features](#features)
