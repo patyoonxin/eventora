@@ -4,9 +4,12 @@ use Dotenv\Dotenv;
 
 require __DIR__ . '/../vendor/autoload.php';
 
-// Load the environment variables from the root folder
-$dotenv = Dotenv::createImmutable(__DIR__ . '/..');
-$dotenv->load();
+$envPath = __DIR__ . '/../.env';
+
+if (file_exists($envPath)) {
+    $dotenv = Dotenv::createImmutable(__DIR__ . '/..');
+    $dotenv->load();
+}
 
 $app = AppFactory::create();
 
@@ -18,13 +21,14 @@ $app->addErrorMiddleware(true, true, true);
 // CORS Middleware Configuration
 $app->add(function ($request, $handler) {
     $response = $handler->handle($request);
+
     return $response
-        ->withHeader('Access-Control-Allow-Origin', $_ENV['FRONTEND_ORIGIN'] ?? '*') // Use env override or allow all in dev
+        ->withHeader('Access-Control-Allow-Origin', getenv('FRONTEND_ORIGIN') ?: '*')
         ->withHeader('Access-Control-Allow-Headers', 'X-Requested-With, Content-Type, Accept, Origin, Authorization')
         ->withHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
 });
 
-// Load the defined routes
+// Load routes
 $routes = require __DIR__ . '/../config/routes.php';
 $routes($app);
 
