@@ -14,7 +14,7 @@
       >
         <div class="flex flex-col gap-6">
           <button
-        @click="router.back()"
+       @click="router.push('/tickets')"
         class="top-5 left-5 w-12 h-12 flex items-center justify-center bg-white dark:bg-gray-800 text-gray-800 dark:text-white rounded-full shadow-lg"
       >
         <span class="text-xl font-bold">←</span>
