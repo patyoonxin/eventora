@@ -177,7 +177,7 @@ const formatDate = (value) => {
 
 const loadEvents = async () => {
   try {
-    const response = await fetch(`${API_BASE}/api/society/upcoming-events`, {
+    const response = await fetch(`${API_BASE}/api/society/past-events`, {
       headers: {
         Authorization: `Bearer ${authStore.token}`,
         Accept: "application/json",
