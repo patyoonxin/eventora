@@ -16,7 +16,7 @@ $app = AppFactory::create();
 // Parsing middleware
 $app->addBodyParsingMiddleware();
 $app->addRoutingMiddleware();
-$app->addErrorMiddleware(true, true, true);
+$app->addErrorMiddleware(false, true, true);
 
 // CORS Middleware Configuration
 $app->add(function ($request, $handler) {
