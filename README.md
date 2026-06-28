@@ -47,7 +47,7 @@ A cross-platform event management and ticketing application designed for student
 
 ## Project Structure
 
-``
+```
 eventora/
 ├── frontend/              # Vue 3 web & mobile app
 │   ├── src/
@@ -67,7 +67,7 @@ eventora/
 │   ├── public/           # Entry point
 │   └── composer.json
 └── README.md
-``
+```
 
 ## Getting Started
 
@@ -80,67 +80,66 @@ eventora/
 ### Backend Setup
 
 1. Navigate to the backend directory:
-   ``ash
+   ```bash
    cd backend
-   ``
+   ```
 
 2. Install dependencies:
-   ``ash
+   ```bash
    composer install
-   ``
+   ```
 
-3. Create .env file with database and API credentials:
-   ``ash
+3. Create `.env` file with database and API credentials:
+   ```bash
    cp .env.example .env
-   ``
+   ```
 
 4. Initialize the database:
-   ``ash
+   ```bash
    mysql -u root -p eventora < database/schema.sql
-   ``
+   ```
 
 5. Start the development server:
-   ``ash
+   ```bash
    php -S localhost:8000 -t public
-   ``
+   ```
 
 ### Frontend Setup
 
 1. Navigate to the frontend directory:
-   ``ash
+   ```bash
    cd frontend
-   ``
+   ```
 
 2. Install dependencies:
-   ``ash
+   ```bash
    npm install
-   ``
+   ```
 
-3. Create .env.local file:
-   ``env
+3. Create `.env.local` file:
+   ```env
    VITE_API_BASE_URL=http://localhost:8000
    VITE_STRIPE_PUBLISHABLE_KEY=pk_test_...
-   ``
+   ```
 
 4. Start the development server:
-   ``ash
+   ```bash
    npm run dev
-   ``
+   ```
 
 ### Mobile (Android) Build
 
 1. Build the frontend:
-   ``ash
+   ```bash
    npm run build
-   ``
+   ```
 
 2. Sync Capacitor:
-   ``ash
+   ```bash
    npx cap sync
-   ``
+   ```
 
 3. Open in Android Studio:
-   ``ash
+   ```bash
    npx cap open android
-   ``
-
+   ```
