@@ -2,7 +2,9 @@
 
 > From idea to QR check-in, run your society events end-to-end.
 
-A cross-platform event management and ticketing application designed for student societies. Eventora replaces fragmented processes with a unified digital ecosystem for creating events, managing registrations, and handling check-ins via secure QR codes.
+A cross-platform event management and ticketing application designed for student societies. Eventora replaces fragmented processes with a unified digital ecosystem for creating events, managing registrations, and handling check-ins via secure QR codes. 
+
+### 🌟Try here: https://eventora-teal.vercel.app/🌟
 
 ## Table of Contents
 - [Features](#features)
@@ -18,13 +20,14 @@ A cross-platform event management and ticketing application designed for student
 - 📅 **Event Lifecycle Management** – Create, edit, and manage events with full lifecycle control
 - 🎫 **QR Code Ticketing** – Generate secure QR codes for instant ticket validation
 - 📍 **Check-in System** – Real-time attendee check-in via mobile camera scanner
+- 🔥 **Feedback System** – Post-event feedback form with rating and comments, dashboard view of results. 
 - 📊 **Analytics & Attendance Reports** – Real-time dashboards with CSV export capabilities
 - 🔔 **Notifications** – Automated email and in-app alerts for registrations and reminders
 
 ### Premium Features
 - 💳 **Real-World Stripe Payment Integration** – Full payment processing for paid events
 - 🤖 **AI-Powered Feedback Summarization** – Sentiment analysis and aggregation of attendee feedback using Large Language Models (LLMs)
-- 📈 **Advanced Analytics** – Premium visualised analytics dashboard for deeper insights
+- 📈 **Advanced Graph Analytics** – Premium visualised analytics dashboard for deeper insights
 - 🎖️ **Digital Certificates** – Automated certificate generation for attendees
 - 🧠 **Smart Recommendation Feed**: Tailored personalized event suggestions displayed to users based on their past attendance history.
 
