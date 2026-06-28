@@ -14,12 +14,13 @@ class Database {
 
             $settings = (require __DIR__ . '/../../config/settings.php')['db'];
 
-            $dsn = "mysql:host={$settings['host']};dbname={$settings['database']};charset={$settings['charset']}";
+            $dsn = "mysql:host={$settings['host']};port={$settings['port']};dbname={$settings['database']};charset={$settings['charset']}";
 
             $options = [
                 PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                 PDO::ATTR_EMULATE_PREPARES   => false,
+                PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT => false,
             ];
 
             try {
