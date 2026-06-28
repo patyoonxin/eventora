@@ -26,7 +26,7 @@ const router = useRouter();
           :src="
             event.image_path
               ? `${API_BASE}/${event.image_path}`
-              : 'https://via.placeholder.com/600x400?text=EventORA'
+              : 'https://images.unsplash.com/photo-1511578314322-379afb476865'
           "
           :alt="event.title" 
           class="w-16 h-12 rounded-xl flex-shrink-0 shadow-sm object-cover" 

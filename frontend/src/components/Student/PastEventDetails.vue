@@ -159,7 +159,8 @@ const formatDate = (dateString) => {
           :src="
             event.image_path
               ? `${API_BASE}/${event.image_path}`
-              : 'https://via.placeholder.com/600x400?text=EventORA'
+              :'https://images.unsplash.com/photo-1511578314322-379afb476865'
+              //: 'https://via.placeholder.com/600x400?text=EventORA'
           "
           class="w-full h-full object-cover"
         />
