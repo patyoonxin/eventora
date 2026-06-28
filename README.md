@@ -15,17 +15,18 @@ A cross-platform event management and ticketing application designed for student
 
 ### Core Features
 - 🔐 **Role-Based Access Control** – Support for Attendees, Event Organizers, and Admin roles
-- 📅 **Event Management** – Create, edit, and manage events with full lifecycle control
+- 📅 **Event Lifecycle Management** – Create, edit, and manage events with full lifecycle control
 - 🎫 **QR Code Ticketing** – Generate secure QR codes for instant ticket validation
 - 📍 **Check-in System** – Real-time attendee check-in via mobile camera scanner
-- 📊 **Analytics & Reports** – Real-time dashboards with CSV export capabilities
+- 📊 **Analytics & Attendance Reports** – Real-time dashboards with CSV export capabilities
 - 🔔 **Notifications** – Automated email and in-app alerts for registrations and reminders
 
 ### Premium Features
-- 💳 **Stripe Payment Integration** – Full payment processing for paid events
-- 🤖 **AI-Powered Feedback** – Sentiment analysis and aggregation of attendee feedback
-- 📈 **Advanced Analytics** – Premium reporting dashboard for deeper insights
+- 💳 **Real-World Stripe Payment Integration** – Full payment processing for paid events
+- 🤖 **AI-Powered Feedback Summarization** – Sentiment analysis and aggregation of attendee feedback using Large Language Models (LLMs)
+- 📈 **Advanced Analytics** – Premium visualised analytics dashboard for deeper insights
 - 🎖️ **Digital Certificates** – Automated certificate generation for attendees
+- 🧠 **Smart Recommendation Feed**: Tailored personalized event suggestions displayed to users based on their past attendance history.
 
 ## Tech Stack
 
@@ -33,9 +34,10 @@ A cross-platform event management and ticketing application designed for student
 - **Vue 3** – Progressive JavaScript framework
 - **Pinia** – State management
 - **Vue Router** – Client-side routing
-- **Capacitor** – Native mobile app framework
+- **Capacitor** – Native mobile app framework utilizing device camera permissions
 - **Tailwind CSS** – Utility-first CSS framework
 - **Vite** – Next-generation build tool
+- **Chart.js** - Renders interactive data graphs
 
 ### Backend
 - **PHP Slim 4** – Lightweight PHP framework
@@ -44,6 +46,7 @@ A cross-platform event management and ticketing application designed for student
 - **JWT** – Secure authentication
 - **Stripe API** – Payment processing
 - **SMTP** – Email notifications
+- **Gemeni API** - AI integration
 
 ## Project Structure
 
