@@ -16,7 +16,17 @@ class AnalyticsController
             $user = $request->getAttribute('user');
 
             // IMPORTANT: make sure this is correct in your JWT payload
-            $societyId = $user->id;
+            $stmt = $db->prepare("
+                SELECT id
+                FROM societies
+                WHERE advisor_id = :user_id
+            ");
+
+            $stmt->execute([
+                'user_id' => $user->id
+            ]);
+
+            $societyId = $stmt->fetchColumn();
 
             if (!$societyId) {
                 $response->getBody()->write(json_encode([
