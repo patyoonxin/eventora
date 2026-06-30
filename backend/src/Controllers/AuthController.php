@@ -427,6 +427,35 @@ public function createSociety(Request $request, Response $response): Response
     return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
 }
 
+public function deleteSociety(Request $request, Response $response, array $args): Response
+{
+    $user = $request->getAttribute('user');
+    if (!$user || !isset($user->role) || $user->role !== 'faculty_admin') {
+        $response->getBody()->write(json_encode(['error' => 'Only faculty admins can remove societies']));
+        return $response->withStatus(403)->withHeader('Content-Type', 'application/json');
+    }
+
+    $societyId = (int)($args['id'] ?? 0);
+    if ($societyId <= 0) {
+        $response->getBody()->write(json_encode(['error' => 'Invalid society id']));
+        return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
+    }
+
+    $db = \App\Models\Database::connect();
+    $checkStmt = $db->prepare('SELECT id FROM societies WHERE id = ? LIMIT 1');
+    $checkStmt->execute([$societyId]);
+    if (!$checkStmt->fetch()) {
+        $response->getBody()->write(json_encode(['error' => 'Society not found']));
+        return $response->withStatus(404)->withHeader('Content-Type', 'application/json');
+    }
+
+    $deleteStmt = $db->prepare('DELETE FROM societies WHERE id = ?');
+    $deleteStmt->execute([$societyId]);
+
+    $response->getBody()->write(json_encode(['message' => 'Society removed successfully']));
+    return $response->withHeader('Content-Type', 'application/json');
+}
+
 public function getAllOrganisers(Request $request, Response $response): Response
 {
     $user = $request->getAttribute('user');
