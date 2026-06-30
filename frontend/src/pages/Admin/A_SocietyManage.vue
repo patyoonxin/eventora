@@ -152,6 +152,35 @@ const closeOrganisersModal = () => {
   organiserSuccess.value = "";
 };
 
+const removeSociety = async (society) => {
+  if (!society) return;
+  const confirmed = window.confirm(`Remove society "${society.name}"?`);
+  if (!confirmed) return;
+
+  errorMsg.value = "";
+
+  try {
+    const res = await fetch(`${API_BASE}/api/admin/societies/${society.id}`, {
+      method: "DELETE",
+      headers: headers(),
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      errorMsg.value = data.error || "Failed to remove society.";
+      return;
+    }
+
+    societies.value = societies.value.filter((item) => item.id !== society.id);
+    if (selectedSociety.value?.id === society.id) {
+      closeOrganisersModal();
+    }
+    errorMsg.value = `Society "${society.name}" removed successfully.`;
+  } catch {
+    errorMsg.value = "Something went wrong.";
+  }
+};
+
 const assignOrganizer = async () => {
   if (!selectedSociety.value) return;
   if (!selectedOrganizerId.value) {
@@ -246,7 +275,7 @@ const removeOrganizer = async (organiserId) => {
         <div v-if="loading" class="empty">Loading...</div>
         <div v-else-if="filteredSocieties.length === 0" class="empty">No societies found.</div>
         <div v-else>
-          <button v-for="society in filteredSocieties" :key="society.id" type="button" class="society-row society-row--interactive" @click="openOrganisersModal(society)">
+          <div v-for="society in filteredSocieties" :key="society.id" class="society-row society-row--interactive" @click="openOrganisersModal(society)">
             <div class="society-text">
               <p class="sname">{{ society.name }}</p>
               <p class="sfaculty">{{ society.faculty }}</p>
@@ -254,8 +283,9 @@ const removeOrganizer = async (organiserId) => {
             <div class="society-meta">
               <span class="chip chip--purple">Advisor ID: {{ society.advisor_id ?? '—' }}</span>
               <span class="chip">Created {{ society.created }}</span>
+              <button type="button" class="remove-society-btn" @click.stop="removeSociety(society)">Remove Society</button>
             </div>
-          </button>
+          </div>
         </div>
       </div>
     </div>
@@ -499,6 +529,16 @@ const removeOrganizer = async (organiserId) => {
 .chip--blue {
   color: #2563eb;
   background: #eff6ff;
+}
+.remove-society-btn {
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #dc2626;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  cursor: pointer;
 }
 
 .modal-wrap {
