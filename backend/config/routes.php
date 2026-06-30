@@ -138,6 +138,27 @@ return function (App $app) {
     $app->post('/api/admin/users', [AuthController::class, 'createUser'])
         ->add(new JwtAuthMiddleware());
 
+    $app->get('/api/admin/societies', [AuthController::class, 'getAllSocieties'])
+        ->add(new JwtAuthMiddleware());
+
+    $app->post('/api/admin/societies', [AuthController::class, 'createSociety'])
+        ->add(new JwtAuthMiddleware());
+
+    $app->delete('/api/admin/societies/{id}', [AuthController::class, 'deleteSociety'])
+        ->add(new JwtAuthMiddleware());
+
+    $app->get('/api/admin/organisers', [AuthController::class, 'getAllOrganisers'])
+        ->add(new JwtAuthMiddleware());
+
+    $app->get('/api/admin/societies/{id}/organisers', [AuthController::class, 'getSocietyOrganisers'])
+        ->add(new JwtAuthMiddleware());
+
+    $app->post('/api/admin/societies/{id}/organisers', [AuthController::class, 'assignSocietyOrganiser'])
+        ->add(new JwtAuthMiddleware());
+
+    $app->delete('/api/admin/societies/{id}/organisers/{user_id}', [AuthController::class, 'removeSocietyOrganiser'])
+        ->add(new JwtAuthMiddleware());
+
     $app->put('/api/admin/users/{id}/role', [AuthController::class, 'updateUserRole'])
         ->add(new JwtAuthMiddleware());
 
