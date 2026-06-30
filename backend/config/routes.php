@@ -144,6 +144,9 @@ return function (App $app) {
     $app->post('/api/admin/societies', [AuthController::class, 'createSociety'])
         ->add(new JwtAuthMiddleware());
 
+    $app->delete('/api/admin/societies/{id}', [AuthController::class, 'deleteSociety'])
+        ->add(new JwtAuthMiddleware());
+
     $app->get('/api/admin/organisers', [AuthController::class, 'getAllOrganisers'])
         ->add(new JwtAuthMiddleware());
 
