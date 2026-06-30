@@ -20,6 +20,7 @@ import S_Analytics from "../pages/Society/S_Analytics.vue";
 // 3. Import Admin Role Pages
 import A_AllEvent from "../pages/Admin/A_AllEvent.vue";
 import A_UserManage from "../pages/Admin/A_UserManage.vue";
+import A_SocietyManage from "../pages/Admin/A_SocietyManage.vue";
 import A_Home from "../pages/Admin/A_Home.vue";
 import A_SocietyAnalytics from "../pages/Admin/A_SocietyAnalytics.vue";
 
@@ -193,6 +194,12 @@ const router = createRouter({
       path: "/admin/users",
       name: "A_UserManage",
       component: A_UserManage,
+      meta: { role: "admin" },
+    },
+    {
+      path: "/admin/societies",
+      name: "A_SocietyManage",
+      component: A_SocietyManage,
       meta: { role: "admin" },
     },
     {
