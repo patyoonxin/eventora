@@ -138,6 +138,12 @@ return function (App $app) {
     $app->post('/api/admin/users', [AuthController::class, 'createUser'])
         ->add(new JwtAuthMiddleware());
 
+    $app->get('/api/admin/societies', [AuthController::class, 'getAllSocieties'])
+        ->add(new JwtAuthMiddleware());
+
+    $app->post('/api/admin/societies', [AuthController::class, 'createSociety'])
+        ->add(new JwtAuthMiddleware());
+
     $app->put('/api/admin/users/{id}/role', [AuthController::class, 'updateUserRole'])
         ->add(new JwtAuthMiddleware());
 
