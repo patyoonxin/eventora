@@ -355,6 +355,78 @@ public function createUser(Request $request, Response $response): Response
     return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
 }
 
+public function getAllSocieties(Request $request, Response $response): Response
+{
+    $user = $request->getAttribute('user');
+    if (!$user || !isset($user->role) || $user->role !== 'faculty_admin') {
+        $response->getBody()->write(json_encode(['error' => 'Only faculty admins can view societies']));
+        return $response->withStatus(403)->withHeader('Content-Type', 'application/json');
+    }
+
+    $db = \App\Models\Database::connect();
+    $stmt = $db->query('SELECT id, name, faculty, advisor_id, created_at FROM societies ORDER BY id ASC');
+    $societies = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+    $response->getBody()->write(json_encode($societies));
+    return $response->withHeader('Content-Type', 'application/json');
+}
+
+public function createSociety(Request $request, Response $response): Response
+{
+    $user = $request->getAttribute('user');
+    if (!$user || !isset($user->role) || $user->role !== 'faculty_admin') {
+        $response->getBody()->write(json_encode(['error' => 'Only faculty admins can create societies']));
+        return $response->withStatus(403)->withHeader('Content-Type', 'application/json');
+    }
+
+    $data = $request->getParsedBody();
+
+    $name = trim((string)($data['name'] ?? ''));
+    $faculty = trim((string)($data['faculty'] ?? ''));
+    $advisorId = isset($data['advisor_id']) && $data['advisor_id'] !== '' ? (int)$data['advisor_id'] : null;
+
+    if ($name === '' || $faculty === '') {
+        $response->getBody()->write(json_encode(['error' => 'Name and faculty are required']));
+        return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
+    }
+
+    if ($advisorId !== null && $advisorId <= 0) {
+        $response->getBody()->write(json_encode(['error' => 'Advisor ID must be a valid user ID']));
+        return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
+    }
+
+    if ($advisorId !== null) {
+        $db = \App\Models\Database::connect();
+        $stmt = $db->prepare('SELECT id FROM users WHERE id = ? LIMIT 1');
+        $stmt->execute([$advisorId]);
+
+        if (!$stmt->fetch()) {
+            $response->getBody()->write(json_encode(['error' => 'Advisor user not found']));
+            return $response->withStatus(404)->withHeader('Content-Type', 'application/json');
+        }
+    }
+
+    $db = \App\Models\Database::connect();
+    $stmt = $db->prepare('INSERT INTO societies (name, faculty, advisor_id) VALUES (?, ?, ?)');
+    $success = $stmt->execute([$name, $faculty, $advisorId]);
+
+    if ($success) {
+        $societyId = (int)$db->lastInsertId();
+        $createdStmt = $db->prepare('SELECT id, name, faculty, advisor_id, created_at FROM societies WHERE id = ?');
+        $createdStmt->execute([$societyId]);
+        $society = $createdStmt->fetch(\PDO::FETCH_ASSOC);
+
+        $response->getBody()->write(json_encode([
+            'message' => 'Society created successfully',
+            'society' => $society,
+        ]));
+        return $response->withStatus(201)->withHeader('Content-Type', 'application/json');
+    }
+
+    $response->getBody()->write(json_encode(['error' => 'Failed to create society']));
+    return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
+}
+
 public function updateUserRole(Request $request, Response $response, array $args): Response
 {
     $id   = (int) $args['id'];
