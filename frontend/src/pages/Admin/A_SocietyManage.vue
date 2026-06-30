@@ -6,11 +6,19 @@ const authStore = useAuthStore();
 const API_BASE = import.meta.env.VITE_API_BASE_URL;
 
 const societies = ref([]);
+const availableOrganisers = ref([]);
+const assignedOrganisers = ref([]);
 const loading = ref(true);
 const search = ref("");
 const showAddModal = ref(false);
+const showOrganisersModal = ref(false);
+const selectedSociety = ref(null);
 const newSociety = ref({ name: "", faculty: "", advisor_id: "" });
 const newSocietyErrors = ref({});
+const selectedOrganizerId = ref("");
+const organiserError = ref("");
+const organiserSuccess = ref("");
+const organiserLoading = ref(false);
 const errorMsg = ref("");
 
 const headers = () => ({
@@ -38,7 +46,22 @@ const fetchSocieties = async () => {
   }
 };
 
-onMounted(fetchSocieties);
+const fetchOrganisers = async () => {
+  try {
+    const res = await fetch(`${API_BASE}/api/admin/organisers`, {
+      headers: headers(),
+    });
+    const data = await res.json();
+    availableOrganisers.value = Array.isArray(data) ? data : [];
+  } catch {
+    availableOrganisers.value = [];
+  }
+};
+
+onMounted(() => {
+  fetchSocieties();
+  fetchOrganisers();
+});
 
 const filteredSocieties = computed(() =>
   societies.value.filter((society) => {
@@ -97,6 +120,71 @@ const closeAddModal = () => {
   newSociety.value = { name: "", faculty: "", advisor_id: "" };
   newSocietyErrors.value = {};
 };
+
+const openOrganisersModal = async (society) => {
+  selectedSociety.value = society;
+  showOrganisersModal.value = true;
+  selectedOrganizerId.value = "";
+  organiserError.value = "";
+  organiserSuccess.value = "";
+  organiserLoading.value = true;
+
+  try {
+    const res = await fetch(`${API_BASE}/api/admin/societies/${society.id}/organisers`, {
+      headers: headers(),
+    });
+    const data = await res.json();
+    assignedOrganisers.value = Array.isArray(data) ? data : [];
+  } catch {
+    organiserError.value = "Failed to load organisers.";
+    assignedOrganisers.value = [];
+  } finally {
+    organiserLoading.value = false;
+  }
+};
+
+const closeOrganisersModal = () => {
+  showOrganisersModal.value = false;
+  selectedSociety.value = null;
+  assignedOrganisers.value = [];
+  selectedOrganizerId.value = "";
+  organiserError.value = "";
+  organiserSuccess.value = "";
+};
+
+const assignOrganizer = async () => {
+  if (!selectedSociety.value) return;
+  if (!selectedOrganizerId.value) {
+    organiserError.value = "Please choose an organiser.";
+    return;
+  }
+
+  organiserLoading.value = true;
+  organiserError.value = "";
+  organiserSuccess.value = "";
+
+  try {
+    const res = await fetch(`${API_BASE}/api/admin/societies/${selectedSociety.value.id}/organisers`, {
+      method: "POST",
+      headers: headers(),
+      body: JSON.stringify({ user_id: Number(selectedOrganizerId.value) }),
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      organiserError.value = data.error || "Failed to assign organiser.";
+      return;
+    }
+
+    assignedOrganisers.value = [...assignedOrganisers.value, data.organiser];
+    selectedOrganizerId.value = "";
+    organiserSuccess.value = "Organiser added successfully.";
+  } catch {
+    organiserError.value = "Something went wrong.";
+  } finally {
+    organiserLoading.value = false;
+  }
+};
 </script>
 
 <template>
@@ -130,7 +218,7 @@ const closeAddModal = () => {
         <div v-if="loading" class="empty">Loading...</div>
         <div v-else-if="filteredSocieties.length === 0" class="empty">No societies found.</div>
         <div v-else>
-          <div v-for="society in filteredSocieties" :key="society.id" class="society-row">
+          <button v-for="society in filteredSocieties" :key="society.id" type="button" class="society-row society-row--interactive" @click="openOrganisersModal(society)">
             <div class="society-text">
               <p class="sname">{{ society.name }}</p>
               <p class="sfaculty">{{ society.faculty }}</p>
@@ -138,8 +226,9 @@ const closeAddModal = () => {
             <div class="society-meta">
               <span class="chip chip--purple">Advisor ID: {{ society.advisor_id ?? '—' }}</span>
               <span class="chip">Created {{ society.created }}</span>
+              <span class="chip chip--blue">Manage organisers</span>
             </div>
-          </div>
+          </button>
         </div>
       </div>
     </div>
@@ -182,6 +271,59 @@ const closeAddModal = () => {
           <div class="modal-foot">
             <button @click="closeAddModal" class="btn-ghost">Cancel</button>
             <button @click="addSociety" class="btn-primary">Add Society</button>
+          </div>
+        </div>
+      </div>
+    </transition>
+
+    <transition name="fade">
+      <div v-if="showOrganisersModal" class="modal-wrap" @click.self="closeOrganisersModal">
+        <div class="modal-bg" @click="closeOrganisersModal" />
+        <div class="modal modal--wide">
+          <div class="modal-head">
+            <div>
+              <h3 class="modal-title">Manage Organisers</h3>
+              <p class="modal-sub">Assign organiser users to {{ selectedSociety?.name || 'this society' }}</p>
+            </div>
+            <button @click="closeOrganisersModal" class="close-btn">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <div class="modal-body">
+            <div class="field">
+              <label>Select organiser</label>
+              <select v-model="selectedOrganizerId" class="field-input field-select">
+                <option value="">Choose an organiser</option>
+                <option v-for="organiser in availableOrganisers" :key="organiser.id" :value="organiser.id">
+                  {{ organiser.name }} — {{ organiser.email }}
+                </option>
+              </select>
+            </div>
+
+            <button @click="assignOrganizer" class="btn-primary btn-full">Add organiser</button>
+            <p v-if="organiserError" class="err-msg">{{ organiserError }}</p>
+            <p v-if="organiserSuccess" class="success-msg">{{ organiserSuccess }}</p>
+
+            <div class="assigned-list">
+              <div class="assigned-title">Assigned organisers</div>
+              <div v-if="organiserLoading" class="empty assigned-empty">Loading...</div>
+              <div v-else-if="assignedOrganisers.length === 0" class="empty assigned-empty">No organisers assigned yet.</div>
+              <div v-else>
+                <div v-for="organiser in assignedOrganisers" :key="organiser.id" class="assigned-item">
+                  <div>
+                    <p class="assigned-name">{{ organiser.name }}</p>
+                    <p class="assigned-email">{{ organiser.email }}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-foot">
+            <button @click="closeOrganisersModal" class="btn-ghost">Close</button>
           </div>
         </div>
       </div>
@@ -267,9 +409,21 @@ const closeAddModal = () => {
   gap: 12px;
   padding: 14px 18px;
   border-bottom: 1px solid #f3f4f6;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border-left: none;
+  border-right: none;
+  border-top: none;
 }
 .society-row:last-child {
   border-bottom: none;
+}
+.society-row--interactive {
+  cursor: pointer;
+}
+.society-row--interactive:hover {
+  background: #faf5ff;
 }
 .society-text {
   flex: 1;
@@ -312,6 +466,10 @@ const closeAddModal = () => {
   color: #7c3aed;
   background: #f5f3ff;
 }
+.chip--blue {
+  color: #2563eb;
+  background: #eff6ff;
+}
 
 .modal-wrap {
   position: fixed;
@@ -337,6 +495,9 @@ const closeAddModal = () => {
   border-radius: 18px;
   padding: 26px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.12);
+}
+.modal--wide {
+  max-width: 460px;
 }
 .modal-head {
   display: flex;
@@ -398,6 +559,9 @@ const closeAddModal = () => {
 .field-input::placeholder {
   color: #9ca3af;
 }
+.field-select {
+  appearance: none;
+}
 .err {
   border-color: #ef4444 !important;
 }
@@ -409,6 +573,10 @@ const closeAddModal = () => {
   display: flex;
   gap: 8px;
   justify-content: flex-end;
+}
+.btn-full {
+  width: 100%;
+  justify-content: center;
 }
 .btn-primary {
   padding: 10px 18px;
@@ -429,5 +597,40 @@ const closeAddModal = () => {
   border: none;
   border-radius: 9px;
   cursor: pointer;
+}
+.success-msg {
+  font-size: 12px;
+  color: #15803d;
+}
+.assigned-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+.assigned-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #374151;
+}
+.assigned-item {
+  padding: 10px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #f9fafb;
+}
+.assigned-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+}
+.assigned-email {
+  font-size: 12px;
+  color: #6b7280;
+  margin: 3px 0 0;
+}
+.assigned-empty {
+  padding: 20px;
 }
 </style>
