@@ -185,6 +185,34 @@ const assignOrganizer = async () => {
     organiserLoading.value = false;
   }
 };
+
+const removeOrganizer = async (organiserId) => {
+  if (!selectedSociety.value) return;
+
+  organiserLoading.value = true;
+  organiserError.value = "";
+  organiserSuccess.value = "";
+
+  try {
+    const res = await fetch(`${API_BASE}/api/admin/societies/${selectedSociety.value.id}/organisers/${organiserId}`, {
+      method: "DELETE",
+      headers: headers(),
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      organiserError.value = data.error || "Failed to remove organiser.";
+      return;
+    }
+
+    assignedOrganisers.value = assignedOrganisers.value.filter((organiser) => organiser.id !== organiserId);
+    organiserSuccess.value = "Organiser removed successfully.";
+  } catch {
+    organiserError.value = "Something went wrong.";
+  } finally {
+    organiserLoading.value = false;
+  }
+};
 </script>
 
 <template>
@@ -226,7 +254,6 @@ const assignOrganizer = async () => {
             <div class="society-meta">
               <span class="chip chip--purple">Advisor ID: {{ society.advisor_id ?? '—' }}</span>
               <span class="chip">Created {{ society.created }}</span>
-              <span class="chip chip--blue">Manage organisers</span>
             </div>
           </button>
         </div>
@@ -281,7 +308,7 @@ const assignOrganizer = async () => {
         <div class="modal-bg" @click="closeOrganisersModal" />
         <div class="modal modal--wide">
           <div class="modal-head">
-            <div>
+            <div class="text-left">
               <h3 class="modal-title">Manage Organisers</h3>
               <p class="modal-sub">Assign organiser users to {{ selectedSociety?.name || 'this society' }}</p>
             </div>
@@ -313,9 +340,12 @@ const assignOrganizer = async () => {
               <div v-else-if="assignedOrganisers.length === 0" class="empty assigned-empty">No organisers assigned yet.</div>
               <div v-else>
                 <div v-for="organiser in assignedOrganisers" :key="organiser.id" class="assigned-item">
-                  <div>
-                    <p class="assigned-name">{{ organiser.name }}</p>
-                    <p class="assigned-email">{{ organiser.email }}</p>
+                  <div class="assigned-item-content">
+                    <div>
+                      <p class="assigned-name">{{ organiser.name }}</p>
+                      <p class="assigned-email">{{ organiser.email }}</p>
+                    </div>
+                    <button type="button" class="remove-btn" @click="removeOrganizer(organiser.id)">Remove</button>
                   </div>
                 </div>
               </div>
@@ -618,6 +648,22 @@ const assignOrganizer = async () => {
   border: 1px solid #e5e7eb;
   border-radius: 10px;
   background: #f9fafb;
+}
+.assigned-item-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.remove-btn {
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #dc2626;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  cursor: pointer;
 }
 .assigned-name {
   font-size: 13px;
