@@ -427,6 +427,97 @@ public function createSociety(Request $request, Response $response): Response
     return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
 }
 
+public function getAllOrganisers(Request $request, Response $response): Response
+{
+    $user = $request->getAttribute('user');
+    if (!$user || !isset($user->role) || $user->role !== 'faculty_admin') {
+        $response->getBody()->write(json_encode(['error' => 'Only faculty admins can manage organisers']));
+        return $response->withStatus(403)->withHeader('Content-Type', 'application/json');
+    }
+
+    $db = \App\Models\Database::connect();
+    $stmt = $db->prepare("SELECT id, name, email FROM users WHERE role = 'organiser' ORDER BY name ASC");
+    $stmt->execute();
+    $organisers = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+    $response->getBody()->write(json_encode($organisers));
+    return $response->withHeader('Content-Type', 'application/json');
+}
+
+public function getSocietyOrganisers(Request $request, Response $response, array $args): Response
+{
+    $user = $request->getAttribute('user');
+    if (!$user || !isset($user->role) || $user->role !== 'faculty_admin') {
+        $response->getBody()->write(json_encode(['error' => 'Only faculty admins can manage organisers']));
+        return $response->withStatus(403)->withHeader('Content-Type', 'application/json');
+    }
+
+    $societyId = (int)($args['id'] ?? 0);
+    if ($societyId <= 0) {
+        $response->getBody()->write(json_encode(['error' => 'Invalid society id']));
+        return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
+    }
+
+    $db = \App\Models\Database::connect();
+    $stmt = $db->prepare("SELECT u.id, u.name, u.email FROM society_organisers so JOIN users u ON u.id = so.user_id WHERE so.society_id = ? ORDER BY u.name ASC");
+    $stmt->execute([$societyId]);
+    $organisers = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+    $response->getBody()->write(json_encode($organisers));
+    return $response->withHeader('Content-Type', 'application/json');
+}
+
+public function assignSocietyOrganiser(Request $request, Response $response, array $args): Response
+{
+    $user = $request->getAttribute('user');
+    if (!$user || !isset($user->role) || $user->role !== 'faculty_admin') {
+        $response->getBody()->write(json_encode(['error' => 'Only faculty admins can manage organisers']));
+        return $response->withStatus(403)->withHeader('Content-Type', 'application/json');
+    }
+
+    $societyId = (int)($args['id'] ?? 0);
+    $data = $request->getParsedBody();
+    $userId = isset($data['user_id']) ? (int)$data['user_id'] : 0;
+
+    if ($societyId <= 0 || $userId <= 0) {
+        $response->getBody()->write(json_encode(['error' => 'Invalid society or organiser id']));
+        return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
+    }
+
+    $db = \App\Models\Database::connect();
+    $societyStmt = $db->prepare('SELECT id FROM societies WHERE id = ? LIMIT 1');
+    $societyStmt->execute([$societyId]);
+    if (!$societyStmt->fetch()) {
+        $response->getBody()->write(json_encode(['error' => 'Society not found']));
+        return $response->withStatus(404)->withHeader('Content-Type', 'application/json');
+    }
+
+    $organiserStmt = $db->prepare("SELECT id, name, email FROM users WHERE id = ? AND role = 'organiser' LIMIT 1");
+    $organiserStmt->execute([$userId]);
+    $organiser = $organiserStmt->fetch(\PDO::FETCH_ASSOC);
+    if (!$organiser) {
+        $response->getBody()->write(json_encode(['error' => 'Organiser user not found']));
+        return $response->withStatus(404)->withHeader('Content-Type', 'application/json');
+    }
+
+    $insertStmt = $db->prepare('INSERT INTO society_organisers (society_id, user_id) VALUES (?, ?)');
+    try {
+        $insertStmt->execute([$societyId, $userId]);
+    } catch (\PDOException $e) {
+        if ($e->getCode() === '23000') {
+            $response->getBody()->write(json_encode(['error' => 'This organiser is already assigned to this society']));
+            return $response->withStatus(409)->withHeader('Content-Type', 'application/json');
+        }
+        throw $e;
+    }
+
+    $response->getBody()->write(json_encode([
+        'message' => 'Organiser assigned successfully',
+        'organiser' => $organiser,
+    ]));
+    return $response->withStatus(201)->withHeader('Content-Type', 'application/json');
+}
+
 public function updateUserRole(Request $request, Response $response, array $args): Response
 {
     $id   = (int) $args['id'];
