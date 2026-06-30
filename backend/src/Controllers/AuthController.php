@@ -518,6 +518,35 @@ public function assignSocietyOrganiser(Request $request, Response $response, arr
     return $response->withStatus(201)->withHeader('Content-Type', 'application/json');
 }
 
+public function removeSocietyOrganiser(Request $request, Response $response, array $args): Response
+{
+    $user = $request->getAttribute('user');
+    if (!$user || !isset($user->role) || $user->role !== 'faculty_admin') {
+        $response->getBody()->write(json_encode(['error' => 'Only faculty admins can manage organisers']));
+        return $response->withStatus(403)->withHeader('Content-Type', 'application/json');
+    }
+
+    $societyId = (int)($args['id'] ?? 0);
+    $userId = (int)($args['user_id'] ?? 0);
+
+    if ($societyId <= 0 || $userId <= 0) {
+        $response->getBody()->write(json_encode(['error' => 'Invalid society or organiser id']));
+        return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
+    }
+
+    $db = \App\Models\Database::connect();
+    $stmt = $db->prepare('DELETE FROM society_organisers WHERE society_id = ? AND user_id = ? LIMIT 1');
+    $success = $stmt->execute([$societyId, $userId]);
+
+    if (!$success || $stmt->rowCount() === 0) {
+        $response->getBody()->write(json_encode(['error' => 'Assigned organiser not found']));
+        return $response->withStatus(404)->withHeader('Content-Type', 'application/json');
+    }
+
+    $response->getBody()->write(json_encode(['message' => 'Organiser removed successfully']));
+    return $response->withHeader('Content-Type', 'application/json');
+}
+
 public function updateUserRole(Request $request, Response $response, array $args): Response
 {
     $id   = (int) $args['id'];
