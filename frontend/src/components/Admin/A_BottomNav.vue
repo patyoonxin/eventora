@@ -31,6 +31,16 @@
         <span class="text-[10px] font-medium">Society Analytics</span>
       </router-link>
 
+      <!-- Society Management Link -->
+      <router-link 
+        to="/admin/societies" 
+        class="flex flex-col items-center gap-0.5 py-1 px-3 rounded-lg transition-all duration-300 hover:scale-105"
+        :class="isActive('/admin/societies') ? 'text-white scale-105' : 'text-white opacity-70 hover:opacity-100'"
+      >
+        <i class="pi pi-building text-lg"></i>
+        <span class="text-[10px] font-medium">Societies</span>
+      </router-link>
+
       <!-- User Management Link -->
       <router-link 
         to="/admin/users" 
