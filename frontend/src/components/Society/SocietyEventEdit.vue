@@ -33,8 +33,32 @@ const categoriesList = ["Academic", "Sports", "Cultural", "Religious"];
 
 
 onMounted(async () => {
-  if (!isEditMode.value) return;
   const token = authStore.token;
+
+  if (!token) {
+    router.replace('/login');
+    return;
+  }
+
+  try {
+    const accessResponse = await fetch(`${API_BASE}/api/society/upcoming-events`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!accessResponse.ok) {
+      alert("You no longer have access to manage events for this society.");
+      router.replace('/society/home');
+      return;
+    }
+  } catch {
+    alert("Unable to verify society access.");
+    router.replace('/society/home');
+    return;
+  }
+
+  if (!isEditMode.value) return;
 
   const response = await fetch(
     `${API_BASE}/api/society/events/${route.params.id}`,
