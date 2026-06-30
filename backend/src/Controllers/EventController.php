@@ -75,26 +75,18 @@ class EventController
         try {
             $db = \App\Models\Database::connect();
 
-            // 1. Extract user details injected by your working JwtAuthMiddleware
             $user = $request->getAttribute('user');
-            $userId = $user->id; // The logged-in organiser's User ID
+            $society = $this->resolveUserSociety($db, $user);
 
-            // 2. Dynamic Lookup: Find the Society ID managed by this advisor/organiser
-            $societyQuery = "SELECT id FROM societies WHERE advisor_id = :user_id LIMIT 1";
-            $socStmt = $db->prepare($societyQuery);
-            $socStmt->execute(['user_id' => $userId]);
-            $society = $socStmt->fetch();
-
-            // Safety check: If this user isn't assigned as an advisor to any society, block them safely
             if (!$society) {
                 $response->getBody()->write(json_encode([
                     "status" => "error",
-                    "message" => "Unauthorized: You are not assigned as an advisor to any active society."
+                    "message" => "Unauthorized: You are not assigned to any society."
                 ]));
                 return $response->withStatus(403)->withHeader('Content-Type', 'application/json');
             }
 
-            $societyId = $society['id']; // This is your dynamic ID! (e.g., 1, 2, or 5 depending on who logs in)
+            $societyId = $society['id'];
 
             // 3. Fetch only UPCOMING events belonging to this dynamic society
             $query = "
@@ -167,23 +159,9 @@ class EventController
     {
         try {
 
-            // 1. Database & User
-            $db = \App\Models\Database::connect();
+$db = \App\Models\Database::connect();
             $user = $request->getAttribute('user');
-
-            // 2. Find society managed by user
-            $societyStmt = $db->prepare("
-            SELECT id
-            FROM societies
-            WHERE advisor_id = :user_id
-            LIMIT 1
-        ");
-
-            $societyStmt->execute([
-                'user_id' => $user->id
-            ]);
-
-            $society = $societyStmt->fetch(\PDO::FETCH_ASSOC);
+            $society = $this->resolveUserSociety($db, $user);
 
             if (!$society) {
                 return $this->errorResponse(
@@ -436,16 +414,7 @@ class EventController
             return $this->errorResponse($response, "Event not found", 404);
         }
 
-        // 2. Fix ownership check (IMPORTANT)
-        $societyStmt = $db->prepare("
-        SELECT id FROM societies WHERE advisor_id = :user_id LIMIT 1
-    ");
-
-        $societyStmt->execute([
-            'user_id' => $user->id
-        ]);
-
-        $society = $societyStmt->fetch(\PDO::FETCH_ASSOC);
+$society = $this->resolveUserSociety($db, $user);
 
         if (!$society || $eventRecord['society_id'] != $society['id']) {
             return $this->errorResponse($response, "Unauthorized", 403);
@@ -573,6 +542,26 @@ class EventController
         return $response->withHeader('Content-Type', 'application/json');
     }
 
+    private function resolveUserSociety(PDO $db, $user): ?array
+    {
+        $userId = (int)($user->id ?? 0);
+        if ($userId <= 0) {
+            return null;
+        }
+
+        $stmt = $db->prepare(
+            "SELECT s.id, s.name
+             FROM societies s
+             LEFT JOIN society_organisers so ON so.society_id = s.id
+             WHERE s.advisor_id = :user_id OR so.user_id = :user_id_2
+             GROUP BY s.id
+             LIMIT 1"
+        );
+        $stmt->execute(['user_id' => $userId, 'user_id_2' => $userId]);
+
+        return $stmt->fetch(\PDO::FETCH_ASSOC) ?: null;
+    }
+
     private function errorResponse(
         Response $response,
         string $message,
@@ -639,19 +628,7 @@ class EventController
             return $this->errorResponse($response, "Event not found", 404);
         }
 
-        // 2. Verify ownership (same logic as your update)
-        $societyStmt = $db->prepare("
-        SELECT id 
-        FROM societies 
-        WHERE advisor_id = :user_id 
-        LIMIT 1
-    ");
-
-        $societyStmt->execute([
-            'user_id' => $user->id
-        ]);
-
-        $society = $societyStmt->fetch(\PDO::FETCH_ASSOC);
+$society = $this->resolveUserSociety($db, $user);
 
         if (!$society || $event['society_id'] != $society['id']) {
             return $this->errorResponse($response, "Unauthorized", 403);
@@ -859,26 +836,18 @@ class EventController
         try {
             $db = \App\Models\Database::connect();
 
-            // 1. Extract user details injected by your working JwtAuthMiddleware
             $user = $request->getAttribute('user');
-            $userId = $user->id; // The logged-in organiser's User ID
+            $society = $this->resolveUserSociety($db, $user);
 
-            // 2. Dynamic Lookup: Find the Society ID managed by this advisor/organiser
-            $societyQuery = "SELECT id FROM societies WHERE advisor_id = :user_id LIMIT 1";
-            $socStmt = $db->prepare($societyQuery);
-            $socStmt->execute(['user_id' => $userId]);
-            $society = $socStmt->fetch();
-
-            // Safety check: If this user isn't assigned as an advisor to any society, block them safely
             if (!$society) {
                 $response->getBody()->write(json_encode([
                     "status" => "error",
-                    "message" => "Unauthorized: You are not assigned as an advisor to any active society."
+                    "message" => "Unauthorized: You are not assigned to any society."
                 ]));
                 return $response->withStatus(403)->withHeader('Content-Type', 'application/json');
             }
 
-            $societyId = $society['id']; // This is your dynamic ID! (e.g., 1, 2, or 5 depending on who logs in)
+            $societyId = $society['id'];
 
             // 3. Fetch only PAST events belonging to this dynamic society
             $query = "
@@ -915,20 +884,13 @@ class EventController
             $db = \App\Models\Database::connect();
             $eventId = $args['id'];
 
-            // 1. Extract user details injected by your working JwtAuthMiddleware
             $user = $request->getAttribute('user');
-            $userId = $user->id; // The logged-in organiser's User ID
-
-            // 2. Dynamic Security Check: Find the Society ID managed by this advisor/organiser
-            $societyQuery = "SELECT id FROM societies WHERE advisor_id = :user_id LIMIT 1";
-            $socStmt = $db->prepare($societyQuery);
-            $socStmt->execute(['user_id' => $userId]);
-            $society = $socStmt->fetch();
+            $society = $this->resolveUserSociety($db, $user);
 
             if (!$society) {
                 $response->getBody()->write(json_encode([
                     "status" => "error",
-                    "message" => "Unauthorized: You are not assigned as an advisor to any active society."
+                    "message" => "Unauthorized: You are not assigned to any society."
                 ]));
                 return $response->withStatus(403)->withHeader('Content-Type', 'application/json');
             }
@@ -1056,10 +1018,7 @@ class EventController
                 return $this->errorResponse($response, 'Ticket ID or QR payload is required', 400);
             }
 
-            // Validate organiser owns the event
-            $societyStmt = $db->prepare("SELECT id FROM societies WHERE advisor_id = :user_id LIMIT 1");
-            $societyStmt->execute(['user_id' => $user->id]);
-            $society = $societyStmt->fetch(\PDO::FETCH_ASSOC);
+            $society = $this->resolveUserSociety($db, $user);
 
             if (!$society) {
                 return $this->errorResponse($response, 'Unauthorized: you are not assigned to any society', 403);
